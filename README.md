@@ -11,23 +11,38 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 ## Features
 
+### Core Features
 - **Multi-Account Support**: Analyze multiple Zerodha accounts simultaneously
   - Individual XIRR calculation for each account
   - Combined portfolio XIRR across all accounts
   - Enter portfolio values separately for each account
+  - Comprehensive summary comparison table
 - **Automatic CSV Detection**: Scans directory and lets you select which accounts to analyze
 - **Comprehensive Transaction Parsing**:
   - Fund additions (deposits)
   - Payouts (withdrawals)
-  - Quarterly settlements
-- **Robust XIRR Calculation**: Uses multiple optimization methods for accuracy
+  - Quarterly settlements (automatic detection)
+- **Robust XIRR Calculation**: Uses multiple optimization methods (Newton-Raphson, Brent's method, grid search)
 - **Detailed Investment Summary**:
   - Total amount invested and withdrawn per account
-  - Current portfolio value
-  - Net gain/loss
+  - Current portfolio value breakdown (holdings + cash)
+  - Net gain/loss calculation
   - Simple return percentage
   - Annualized XIRR percentage
+
+### PDF Report Generation 📄
+- **Professional PDF Reports**: Generate beautifully formatted PDF reports
+  - Auto-cleanup of old PDFs (keeps only the latest)
+  - Custom or auto-timestamped filenames
+  - Comprehensive portfolio summary
+  - Individual account breakdowns (for multi-account)
+  - Comparison tables with all key metrics
+  - Print-friendly layout
+
+### Additional Features
 - **Smart Error Handling**: Gracefully handles extreme loss scenarios where XIRR cannot be calculated
+- **Virtual Environment Setup**: Automatic dependency installation via startup script
+- **Clean Output**: No information duplication, professional formatting
 
 ## Quick Start
 
@@ -190,12 +205,48 @@ Current value: ₹35,80,000.00
 XIRR: -8.2%
 
 SUMMARY TABLE
-════════════════════════════════════════════════════════════
-Account                    Invested       Current      XIRR
-ledger-GZW478.csv      ₹46,73,336.00  ₹15,50,000.00  -18.5%
-ledger-NBN208.csv      ₹50,88,820.00  ₹20,30,000.00   2.41%
-COMBINED               ₹97,62,156.00  ₹35,80,000.00  -8.2%
+═══════════════════════════════════════════════════════════════════════════
+Account              Invested     Withdrawn       Current     Gain/Loss
+───────────────────────────────────────────────────────────────────────────
+ledger-GZW478.csv  ₹46,73,336  ₹10,88,379  ₹15,50,000  ₹-20,34,957
+ledger-NBN208.csv  ₹50,88,820  ₹16,48,722  ₹20,30,000  ₹-14,10,098
+───────────────────────────────────────────────────────────────────────────
+COMBINED           ₹97,62,156  ₹27,37,101  ₹35,80,000  ₹-34,45,055
 ```
+
+**The summary table shows:**
+- Total invested per account
+- Total withdrawn (including payouts and quarterly settlements)
+- Current portfolio value
+- Net gain/loss (accounts for all inflows and outflows)
+
+### PDF Report Generation
+
+After completing the XIRR analysis, you'll be prompted to save a PDF report:
+
+```
+============================================================
+Would you like to save this report as PDF? (y/n): y
+Cleaning up 3 old PDF file(s)...
+Enter filename (press Enter for 'xirr_report_20260211_174905.pdf'):
+
+Generating PDF report...
+✓ PDF report saved successfully: xirr_report_20260211_174905.pdf
+```
+
+**PDF Features:**
+- 📄 Professional formatting with color-coded headers
+- 📊 All analysis sections included (portfolio summary, individual accounts, comparison table)
+- 🧹 Auto-cleanup: Automatically deletes old PDF files before generating new one
+- 📅 Auto-timestamped filenames or custom names
+- 💰 Currency displayed as "Rs." (ASCII-compatible for all PDF viewers)
+- 🖨️ Print-friendly layout
+
+**Perfect for:**
+- Tax filing and ITR documentation
+- Sharing with financial advisors
+- Investment record keeping
+- Performance tracking
 
 ### Single Account Example
 
@@ -238,9 +289,28 @@ Net gain/loss: ₹-152,677.00
 1. **Reads the Zerodha Ledger CSV**: Parses the CSV file exported from Zerodha
 2. **Identifies Cash Flows**:
    - **Outflows**: All "Funds added" transactions (money you invested)
-   - **Inflows**: All "Payout" transactions (money you withdrew)
+   - **Inflows**:
+     - "Payout" transactions (money you withdrew)
+     - "Quarterly settlement" transactions (funds returned by Zerodha)
    - **Final Value**: Current holdings + available cash (as of today)
-3. **Calculates XIRR**: Uses the Newton-Raphson method to find the annualized return rate that makes the Net Present Value (NPV) of all cash flows equal to zero
+3. **Calculates XIRR**: Uses multiple optimization methods:
+   - Newton-Raphson method (primary)
+   - Brent's method (fallback for complex scenarios)
+   - Grid search (for extreme cases)
+   - Finds the annualized return rate that makes NPV = 0
+
+## Output Sections
+
+### For Single Account:
+1. **Portfolio Summary**: Investment period, transaction counts
+2. **Financial Metrics**: Total invested, withdrawn, current value
+3. **Performance**: Net gain/loss, simple return, XIRR
+
+### For Multiple Accounts:
+1. **Individual Account Analysis**: Detailed breakdown per account
+2. **Combined Portfolio Analysis**: Aggregate metrics across all accounts
+3. **Summary Comparison Table**: Side-by-side comparison with gain/loss column
+4. **PDF Export Option**: Save professional report
 
 ## Understanding Your Results
 
@@ -275,13 +345,28 @@ XIRR provides a more accurate picture by considering all these factors.
 - Check that the CSV file path is correct
 - Make sure the file is in the same directory or provide the full path
 
+## Dependencies
+
+The calculator automatically installs these Python packages:
+- `pandas` - CSV parsing and data manipulation
+- `numpy` - Numerical computations
+- `scipy` - Optimization methods for XIRR calculation
+- `reportlab` - PDF report generation
+
+All dependencies are installed automatically when using `run_xirr.sh`.
+
 ## CSV Format
 
 The tool expects a Zerodha ledger CSV with these columns:
-- `particulars`: Transaction description
-- `posting_date`: Date of transaction (YYYY-MM-DD)
-- `credit`: Credit amount (for fund additions)
-- `debit`: Debit amount (for payouts)
+- `particulars`: Transaction description (identifies fund additions, payouts, quarterly settlements)
+- `posting_date`: Date of transaction (YYYY-MM-DD format)
+- `credit`: Credit amount (used for fund additions)
+- `debit`: Debit amount (used for payouts and settlements)
+
+**Supported transaction types:**
+- "Funds added" → Counted as investment (outflow)
+- "Payout" → Counted as withdrawal (inflow)
+- "quarterly settlement" → Counted as withdrawal (inflow)
 
 ## License
 
