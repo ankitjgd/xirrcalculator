@@ -242,6 +242,11 @@ def format_currency(amount):
     return f"₹{amount:,.2f}"
 
 
+def format_currency_pdf(amount):
+    """Format amount as Indian currency for PDF (ASCII-compatible)."""
+    return f"Rs. {amount:,.2f}"
+
+
 def find_csv_files(directory="."):
     """Find all CSV files in the given directory."""
     csv_files = glob.glob(os.path.join(directory, "*.csv"))
@@ -439,10 +444,10 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
         ['First Investment Date', combined_stats['first_date'].strftime('%B %d, %Y')],
         ['Investment Period', f"{combined_stats['days_invested']} days ({combined_stats['years_invested']:.2f} years)"],
         ['Total Transactions', f"{combined_stats['num_outflows']} investments, {combined_stats['num_inflows']} withdrawals"],
-        ['Total Invested', format_currency(combined_stats['total_invested'])],
-        ['Total Withdrawn', format_currency(combined_stats['total_withdrawn'])],
-        ['Current Portfolio Value', format_currency(combined_stats['current_value'])],
-        ['Net Gain/Loss', format_currency(combined_stats['net_gain'])],
+        ['Total Invested', format_currency_pdf(combined_stats['total_invested'])],
+        ['Total Withdrawn', format_currency_pdf(combined_stats['total_withdrawn'])],
+        ['Current Portfolio Value', format_currency_pdf(combined_stats['current_value'])],
+        ['Net Gain/Loss', format_currency_pdf(combined_stats['net_gain'])],
         ['Simple Return', f"{combined_stats['simple_return']:.2f}%"],
     ]
 
@@ -480,10 +485,10 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
 
             account_data = [
                 ['Metric', 'Value'],
-                ['Total Invested', format_currency(stats['total_invested'])],
-                ['Total Withdrawn', format_currency(stats['total_withdrawn'])],
-                ['Current Value', format_currency(stats['current_value'])],
-                ['Net Gain/Loss', format_currency(stats['net_gain'])],
+                ['Total Invested', format_currency_pdf(stats['total_invested'])],
+                ['Total Withdrawn', format_currency_pdf(stats['total_withdrawn'])],
+                ['Current Value', format_currency_pdf(stats['current_value'])],
+                ['Net Gain/Loss', format_currency_pdf(stats['net_gain'])],
                 ['Simple Return', f"{stats['simple_return']:.2f}%"],
             ]
 
@@ -517,8 +522,8 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
             xirr_str = f"{stats['xirr_percentage']:.2f}%" if stats['xirr_percentage'] is not None else "N/A"
             comparison_data.append([
                 stats['file_name'],
-                format_currency(stats['total_invested']),
-                format_currency(stats['current_value']),
+                format_currency_pdf(stats['total_invested']),
+                format_currency_pdf(stats['current_value']),
                 xirr_str
             ])
 
@@ -526,8 +531,8 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
         combined_xirr_str = f"{combined_stats['xirr_percentage']:.2f}%" if combined_stats['xirr_percentage'] is not None else "N/A"
         comparison_data.append([
             'COMBINED',
-            format_currency(combined_stats['total_invested']),
-            format_currency(combined_stats['current_value']),
+            format_currency_pdf(combined_stats['total_invested']),
+            format_currency_pdf(combined_stats['current_value']),
             combined_xirr_str
         ])
 
