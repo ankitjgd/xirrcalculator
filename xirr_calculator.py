@@ -697,6 +697,19 @@ def main():
     save_pdf = input("Would you like to save this report as PDF? (y/n): ").strip().lower()
 
     if save_pdf in ['y', 'yes']:
+        # Clean up old PDF files
+        try:
+            pdf_files = glob.glob("*.pdf")
+            if pdf_files:
+                print(f"\nCleaning up {len(pdf_files)} old PDF file(s)...")
+                for pdf_file in pdf_files:
+                    try:
+                        os.remove(pdf_file)
+                    except Exception as e:
+                        print(f"  Warning: Could not delete {pdf_file}: {e}")
+        except Exception as e:
+            print(f"Warning: Error during cleanup: {e}")
+
         # Generate default filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         default_filename = f"xirr_report_{timestamp}.pdf"
