@@ -46,6 +46,103 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 ## Quick Start
 
+### Windows - Complete Setup Guide
+
+#### Step 1: Install Python (If Not Already Installed)
+
+1. **Download Python:**
+   - Go to https://www.python.org/downloads/
+   - Download Python 3.7 or higher (latest stable version recommended)
+
+2. **Install Python:**
+   - Run the installer
+   - ⚠️ **IMPORTANT**: Check ☑️ "Add Python to PATH" at the bottom of the installer
+   - Click "Install Now"
+   - Wait for installation to complete
+
+3. **Verify Installation:**
+   - Open Command Prompt (press `Win + R`, type `cmd`, press Enter)
+   - Type: `python --version`
+   - Should show: `Python 3.x.x`
+   - If not recognized, see [Windows Troubleshooting](#windows-specific-issues)
+
+#### Step 2: Download the Calculator
+
+1. **Download this repository:**
+   - Click the green "Code" button on GitHub
+   - Select "Download ZIP"
+   - Extract the ZIP file to a folder (e.g., `C:\xirrcalculator`)
+
+2. **Place your CSV files:**
+   - Export your Zerodha ledger(s) from Zerodha Console
+   - Copy the CSV file(s) to the calculator folder
+
+#### Step 3: Run the Calculator
+
+**Option A: Double-Click Method (Easiest)**
+1. Navigate to the calculator folder
+2. Double-click `run_xirr.bat`
+3. First run will set up everything (takes 1-2 minutes)
+4. Follow the prompts
+
+**Option B: Command Prompt Method**
+1. Open Command Prompt
+2. Navigate to calculator folder:
+   ```cmd
+   cd C:\xirrcalculator
+   ```
+3. Run the script:
+   ```cmd
+   run_xirr.bat
+   ```
+   Or for a specific file:
+   ```cmd
+   run_xirr.bat your-ledger.csv
+   ```
+
+**Option C: PowerShell Method**
+1. Open PowerShell (right-click Start → Windows PowerShell)
+2. Navigate to calculator folder:
+   ```powershell
+   cd C:\xirrcalculator
+   ```
+3. Run the script:
+   ```powershell
+   .\run_xirr.ps1
+   ```
+   Or for a specific file:
+   ```powershell
+   .\run_xirr.ps1 your-ledger.csv
+   ```
+
+#### First Run Setup
+- The script will automatically:
+  - Create a virtual environment (30 seconds)
+  - Install all required packages (1-2 minutes)
+  - Start the calculator
+- Subsequent runs will be much faster (immediate start)
+
+#### Using the Calculator
+
+1. **For single CSV file:**
+   - Script will detect and use it automatically
+   - Or specify: `run_xirr.bat ledger.csv`
+
+2. **For multiple CSV files:**
+   - Script will show a list
+   - Select which accounts to analyze
+   - Press Enter to use all
+
+3. **Enter portfolio values:**
+   - Current holdings value (total stocks value)
+   - Current available cash
+   - Calculator will show results
+
+4. **Save PDF (optional):**
+   - Answer 'y' when prompted
+   - Enter custom filename or press Enter for auto-name
+   - PDF will be saved in the same folder
+
 ### macOS / Linux
 
 #### Single Account
@@ -70,41 +167,29 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 ./run_xirr.sh
 ```
 
-### Windows
+### Windows Quick Reference
 
-#### Single Account
+After completing the setup above, use these commands:
 
-1. Export your Zerodha ledger as a CSV file from Zerodha Console
-2. Place the CSV file in this directory
-3. Run the startup script:
-
-**Using Command Prompt:**
+**Command Prompt:**
 ```cmd
+# Auto-detect CSV files
+run_xirr.bat
+
+# Specific CSV file
 run_xirr.bat your-ledger.csv
 ```
 
-**Using PowerShell:**
+**PowerShell:**
 ```powershell
+# Auto-detect CSV files
+.\run_xirr.ps1
+
+# Specific CSV file
 .\run_xirr.ps1 your-ledger.csv
 ```
 
-4. Enter your current holdings value and available cash when prompted
-
-#### Multiple Accounts
-
-1. Export ledgers for all your Zerodha accounts as CSV files
-2. Place all CSV files in this directory
-3. Run without specifying a file:
-
-**Using Command Prompt:**
-```cmd
-run_xirr.bat
-```
-
-**Using PowerShell:**
-```powershell
-.\run_xirr.ps1
-```
+**Or just double-click:** `run_xirr.bat` in File Explorer
 
 ### What the Startup Scripts Do
 
