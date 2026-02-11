@@ -289,61 +289,6 @@ def select_csv_files(csv_files):
             print("Invalid input. Please enter numbers separated by commas or 'all'")
 
 
-def get_fiscal_year(date):
-    """
-    Get fiscal year for a given date.
-    Indian fiscal year: April 1 to March 31
-    FY 2023-24 means April 1, 2023 to March 31, 2024
-    """
-    if date.month >= 4:  # April or later
-        return f"FY {date.year}-{str(date.year + 1)[2:]}"
-    else:  # January to March
-        return f"FY {date.year - 1}-{str(date.year)[2:]}"
-
-
-def calculate_yearwise_summary(outflows, inflows):
-    """Calculate fiscal year-wise transaction summary."""
-    # Combine all transactions
-    all_transactions = []
-
-    for _, row in outflows.iterrows():
-        all_transactions.append({
-            'date': pd.to_datetime(row['date']),
-            'amount': row['amount'],  # negative for outflows
-            'type': 'investment'
-        })
-
-    for _, row in inflows.iterrows():
-        all_transactions.append({
-            'date': pd.to_datetime(row['date']),
-            'amount': row['amount'],  # positive for inflows
-            'type': 'withdrawal'
-        })
-
-    if not all_transactions:
-        return []
-
-    # Create DataFrame and extract fiscal year
-    df = pd.DataFrame(all_transactions)
-    df['fiscal_year'] = df['date'].apply(get_fiscal_year)
-
-    # Group by fiscal year
-    yearly_summary = []
-    for fy in sorted(df['fiscal_year'].unique()):
-        year_data = df[df['fiscal_year'] == fy]
-        invested = -year_data[year_data['type'] == 'investment']['amount'].sum()
-        withdrawn = year_data[year_data['type'] == 'withdrawal']['amount'].sum()
-
-        yearly_summary.append({
-            'year': fy,
-            'invested': invested,
-            'withdrawn': withdrawn,
-            'net_flow': withdrawn - invested
-        })
-
-    return yearly_summary
-
-
 def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
     """Calculate portfolio statistics for a given set of transactions."""
     today = datetime.now()
@@ -391,9 +336,6 @@ def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
     except Exception as e:
         xirr_error = str(e)
 
-    # Calculate fiscal year-wise summary
-    yearly_summary = calculate_yearwise_summary(outflows, inflows)
-
     return {
         'file_name': file_name,
         'first_date': first_date,
@@ -407,8 +349,7 @@ def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
         'xirr_percentage': xirr_percentage,
         'xirr_error': xirr_error,
         'num_outflows': len(outflows),
-        'num_inflows': len(inflows),
-        'yearly_summary': yearly_summary
+        'num_inflows': len(inflows)
     }
 
 
@@ -449,35 +390,6 @@ def display_portfolio_stats(stats, title="Investment Analysis"):
             print(f"\nReason: {stats['xirr_error']}")
             if "extreme losses" in stats['xirr_error'].lower():
                 print("\nThe simple return percentage reflects the overall performance.")
-
-    # Display fiscal year-wise summary
-    if stats['yearly_summary']:
-        print(f"\n{'-'*78}")
-        print("  Fiscal Year-wise Transaction Summary")
-        print(f"{'-'*78}")
-        print(f"{'Fiscal Year':<12} {'Invested':>14} {'Withdrawn':>14} {'Net Flow':>14} {'Cumulative':>14}")
-        print(f"{'':12} {'':14} {'':14} {'':14} {'Invested':>14}")
-        print("-" * 78)
-
-        cumulative_invested = 0
-        cumulative_withdrawn = 0
-
-        for year_data in stats['yearly_summary']:
-            cumulative_invested += year_data['invested']
-            cumulative_withdrawn += year_data['withdrawn']
-
-            print(f"{year_data['year']:<12} "
-                  f"{format_currency(year_data['invested']):>14} "
-                  f"{format_currency(year_data['withdrawn']):>14} "
-                  f"{format_currency(year_data['net_flow']):>14} "
-                  f"{format_currency(cumulative_invested):>14}")
-
-        print("-" * 78)
-        print(f"{'Total':<12} "
-              f"{format_currency(cumulative_invested):>14} "
-              f"{format_currency(cumulative_withdrawn):>14} "
-              f"{format_currency(cumulative_withdrawn - cumulative_invested):>14} "
-              f"{'':>14}")
 
 
 def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.pdf"):
@@ -556,51 +468,6 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
 
     elements.append(summary_table)
     elements.append(Spacer(1, 20))
-
-    # Fiscal Year-wise Summary
-    if combined_stats['yearly_summary']:
-        elements.append(Paragraph("Fiscal Year-wise Transaction Summary", heading_style))
-
-        fy_data = [['Fiscal Year', 'Invested', 'Withdrawn', 'Net Flow', 'Cumulative Invested']]
-
-        cumulative = 0
-        for year_data in combined_stats['yearly_summary']:
-            cumulative += year_data['invested']
-            fy_data.append([
-                year_data['year'],
-                format_currency(year_data['invested']),
-                format_currency(year_data['withdrawn']),
-                format_currency(year_data['net_flow']),
-                format_currency(cumulative)
-            ])
-
-        # Add total row
-        fy_data.append([
-            'Total',
-            format_currency(combined_stats['total_invested']),
-            format_currency(combined_stats['total_withdrawn']),
-            format_currency(combined_stats['total_withdrawn'] - combined_stats['total_invested']),
-            ''
-        ])
-
-        fy_table = Table(fy_data, colWidths=[1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.4*inch])
-        fy_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.lightgrey]),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#c5cae9')),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ]))
-
-        elements.append(fy_table)
-        elements.append(Spacer(1, 20))
 
     # Individual Account Analysis (if multiple accounts)
     if len(individual_stats) > 1:
