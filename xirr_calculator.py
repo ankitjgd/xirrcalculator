@@ -15,6 +15,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from scipy.optimize import newton, brentq
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 
 def calculate_xirr(cash_flows, dates, guess=0.1):
@@ -474,6 +480,220 @@ def display_portfolio_stats(stats, title="Investment Analysis"):
               f"{'':>14}")
 
 
+def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.pdf"):
+    """Generate a PDF report with XIRR analysis results."""
+    doc = SimpleDocTemplate(filename, pagesize=A4,
+                           rightMargin=30, leftMargin=30,
+                           topMargin=30, bottomMargin=18)
+
+    # Container for the 'Flowable' objects
+    elements = []
+
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#1a237e'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#283593'),
+        spaceAfter=12,
+        spaceBefore=12,
+        fontName='Helvetica-Bold'
+    )
+
+    # Title
+    title = Paragraph("XIRR Calculator Report", title_style)
+    elements.append(title)
+
+    subtitle = Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal'])
+    elements.append(subtitle)
+    elements.append(Spacer(1, 20))
+
+    # Combined Portfolio Summary
+    elements.append(Paragraph("Portfolio Summary", heading_style))
+
+    summary_data = [
+        ['Metric', 'Value'],
+        ['First Investment Date', combined_stats['first_date'].strftime('%B %d, %Y')],
+        ['Investment Period', f"{combined_stats['days_invested']} days ({combined_stats['years_invested']:.2f} years)"],
+        ['Total Transactions', f"{combined_stats['num_outflows']} investments, {combined_stats['num_inflows']} withdrawals"],
+        ['Total Invested', format_currency(combined_stats['total_invested'])],
+        ['Total Withdrawn', format_currency(combined_stats['total_withdrawn'])],
+        ['Current Portfolio Value', format_currency(combined_stats['current_value'])],
+        ['Net Gain/Loss', format_currency(combined_stats['net_gain'])],
+        ['Simple Return', f"{combined_stats['simple_return']:.2f}%"],
+    ]
+
+    if combined_stats['xirr_percentage'] is not None:
+        summary_data.append(['XIRR (Annualized)', f"{combined_stats['xirr_percentage']:.2f}%"])
+    else:
+        summary_data.append(['XIRR (Annualized)', 'Cannot be calculated'])
+
+    summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+    ]))
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 20))
+
+    # Fiscal Year-wise Summary
+    if combined_stats['yearly_summary']:
+        elements.append(Paragraph("Fiscal Year-wise Transaction Summary", heading_style))
+
+        fy_data = [['Fiscal Year', 'Invested', 'Withdrawn', 'Net Flow', 'Cumulative Invested']]
+
+        cumulative = 0
+        for year_data in combined_stats['yearly_summary']:
+            cumulative += year_data['invested']
+            fy_data.append([
+                year_data['year'],
+                format_currency(year_data['invested']),
+                format_currency(year_data['withdrawn']),
+                format_currency(year_data['net_flow']),
+                format_currency(cumulative)
+            ])
+
+        # Add total row
+        fy_data.append([
+            'Total',
+            format_currency(combined_stats['total_invested']),
+            format_currency(combined_stats['total_withdrawn']),
+            format_currency(combined_stats['total_withdrawn'] - combined_stats['total_invested']),
+            ''
+        ])
+
+        fy_table = Table(fy_data, colWidths=[1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.4*inch])
+        fy_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.lightgrey]),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#c5cae9')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+
+        elements.append(fy_table)
+        elements.append(Spacer(1, 20))
+
+    # Individual Account Analysis (if multiple accounts)
+    if len(individual_stats) > 1:
+        elements.append(PageBreak())
+        elements.append(Paragraph("Individual Account Analysis", heading_style))
+        elements.append(Spacer(1, 12))
+
+        for stats in individual_stats:
+            elements.append(Paragraph(f"Account: {stats['file_name']}", styles['Heading3']))
+
+            account_data = [
+                ['Metric', 'Value'],
+                ['Total Invested', format_currency(stats['total_invested'])],
+                ['Total Withdrawn', format_currency(stats['total_withdrawn'])],
+                ['Current Value', format_currency(stats['current_value'])],
+                ['Net Gain/Loss', format_currency(stats['net_gain'])],
+                ['Simple Return', f"{stats['simple_return']:.2f}%"],
+            ]
+
+            if stats['xirr_percentage'] is not None:
+                account_data.append(['XIRR (Annualized)', f"{stats['xirr_percentage']:.2f}%"])
+            else:
+                account_data.append(['XIRR (Annualized)', 'N/A'])
+
+            account_table = Table(account_data, colWidths=[2.5*inch, 2.5*inch])
+            account_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5c6bc0')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]))
+
+            elements.append(account_table)
+            elements.append(Spacer(1, 15))
+
+        # Comparison table
+        elements.append(Paragraph("Account Comparison", styles['Heading3']))
+
+        comparison_data = [['Account', 'Invested', 'Current Value', 'XIRR']]
+
+        for stats in individual_stats:
+            xirr_str = f"{stats['xirr_percentage']:.2f}%" if stats['xirr_percentage'] is not None else "N/A"
+            comparison_data.append([
+                stats['file_name'],
+                format_currency(stats['total_invested']),
+                format_currency(stats['current_value']),
+                xirr_str
+            ])
+
+        # Add combined row
+        combined_xirr_str = f"{combined_stats['xirr_percentage']:.2f}%" if combined_stats['xirr_percentage'] is not None else "N/A"
+        comparison_data.append([
+            'COMBINED',
+            format_currency(combined_stats['total_invested']),
+            format_currency(combined_stats['current_value']),
+            combined_xirr_str
+        ])
+
+        comparison_table = Table(comparison_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.2*inch])
+        comparison_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.lightgrey]),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#c5cae9')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+
+        elements.append(comparison_table)
+
+    # Footer
+    elements.append(Spacer(1, 30))
+    footer = Paragraph(
+        "Generated by XIRR Calculator | https://github.com/ankitjgd/xirrcalculator",
+        styles['Normal']
+    )
+    elements.append(footer)
+
+    # Build PDF
+    doc.build(elements)
+    return filename
+
+
 def main():
     print("="*60)
     print("  XIRR Calculator for Zerodha Portfolio")
@@ -593,6 +813,29 @@ def main():
         print("-" * 60)
         xirr_str = f"{combined_stats['xirr_percentage']:.2f}%" if combined_stats['xirr_percentage'] is not None else "N/A"
         print(f"{'COMBINED':<25} {format_currency(combined_stats['total_invested']):>12} {format_currency(combined_stats['current_value']):>12} {xirr_str:>8}")
+
+    # Ask if user wants to save PDF report
+    print("\n" + "="*60)
+    save_pdf = input("Would you like to save this report as PDF? (y/n): ").strip().lower()
+
+    if save_pdf in ['y', 'yes']:
+        # Generate default filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        default_filename = f"xirr_report_{timestamp}.pdf"
+
+        custom_name = input(f"Enter filename (press Enter for '{default_filename}'): ").strip()
+        pdf_filename = custom_name if custom_name else default_filename
+
+        # Ensure .pdf extension
+        if not pdf_filename.endswith('.pdf'):
+            pdf_filename += '.pdf'
+
+        try:
+            print(f"\nGenerating PDF report...")
+            generate_pdf_report(individual_stats, combined_stats, pdf_filename)
+            print(f"✓ PDF report saved successfully: {pdf_filename}")
+        except Exception as e:
+            print(f"✗ Error generating PDF: {e}")
 
     print("\n")
 
