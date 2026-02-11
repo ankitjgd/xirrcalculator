@@ -474,6 +474,41 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
     elements.append(summary_table)
     elements.append(Spacer(1, 20))
 
+    # Combined Gains Summary (if multiple accounts)
+    if len(individual_stats) > 1:
+        elements.append(Paragraph("Combined Gains Summary", heading_style))
+
+        gains_data = [
+            ['Metric', 'Value'],
+            ['Total Invested', format_currency_pdf(combined_stats['total_invested'])],
+            ['Total Withdrawn', format_currency_pdf(combined_stats['total_withdrawn'])],
+            ['Current Portfolio Value', format_currency_pdf(combined_stats['current_value'])],
+            ['Net Gain/Loss', format_currency_pdf(combined_stats['net_gain'])],
+            ['Simple Return', f"{combined_stats['simple_return']:.2f}%"],
+        ]
+
+        if combined_stats['xirr_percentage'] is not None:
+            gains_data.append(['XIRR (Annualized)', f"{combined_stats['xirr_percentage']:.2f}%"])
+        else:
+            gains_data.append(['XIRR (Annualized)', 'N/A'])
+
+        gains_table = Table(gains_data, colWidths=[3*inch, 3*inch])
+        gains_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a237e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+
+        elements.append(gains_table)
+        elements.append(Spacer(1, 20))
+
     # Individual Account Analysis (if multiple accounts)
     if len(individual_stats) > 1:
         elements.append(PageBreak())
@@ -516,27 +551,27 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
         # Comparison table
         elements.append(Paragraph("Account Comparison", styles['Heading3']))
 
-        comparison_data = [['Account', 'Invested', 'Current Value', 'XIRR']]
+        comparison_data = [['Account', 'Invested', 'Withdrawn', 'Current', 'Gain/Loss']]
 
         for stats in individual_stats:
-            xirr_str = f"{stats['xirr_percentage']:.2f}%" if stats['xirr_percentage'] is not None else "N/A"
             comparison_data.append([
                 stats['file_name'],
                 format_currency_pdf(stats['total_invested']),
+                format_currency_pdf(stats['total_withdrawn']),
                 format_currency_pdf(stats['current_value']),
-                xirr_str
+                format_currency_pdf(stats['net_gain'])
             ])
 
         # Add combined row
-        combined_xirr_str = f"{combined_stats['xirr_percentage']:.2f}%" if combined_stats['xirr_percentage'] is not None else "N/A"
         comparison_data.append([
             'COMBINED',
             format_currency_pdf(combined_stats['total_invested']),
+            format_currency_pdf(combined_stats['total_withdrawn']),
             format_currency_pdf(combined_stats['current_value']),
-            combined_xirr_str
+            format_currency_pdf(combined_stats['net_gain'])
         ])
 
-        comparison_table = Table(comparison_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.2*inch])
+        comparison_table = Table(comparison_data, colWidths=[1.5*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch])
         comparison_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -672,19 +707,37 @@ def main():
 
     # Summary table for multiple files
     if len(csv_files) > 1:
-        print("\n\n" + "="*60)
+        print("\n\n" + "="*75)
         print("  SUMMARY TABLE")
-        print("="*60)
-        print(f"\n{'Account':<25} {'Invested':>12} {'Current':>12} {'XIRR':>8}")
-        print("-" * 60)
+        print("="*75)
+        print(f"\n{'Account':<20} {'Invested':>13} {'Withdrawn':>13} {'Current':>13} {'Gain/Loss':>13}")
+        print("-" * 75)
 
         for stats in individual_stats:
-            xirr_str = f"{stats['xirr_percentage']:.2f}%" if stats['xirr_percentage'] is not None else "N/A"
-            print(f"{stats['file_name']:<25} {format_currency(stats['total_invested']):>12} {format_currency(stats['current_value']):>12} {xirr_str:>8}")
+            print(f"{stats['file_name']:<20} "
+                  f"{format_currency(stats['total_invested']):>13} "
+                  f"{format_currency(stats['total_withdrawn']):>13} "
+                  f"{format_currency(stats['current_value']):>13} "
+                  f"{format_currency(stats['net_gain']):>13}")
 
-        print("-" * 60)
+        print("-" * 75)
+        print(f"{'COMBINED':<20} "
+              f"{format_currency(combined_stats['total_invested']):>13} "
+              f"{format_currency(combined_stats['total_withdrawn']):>13} "
+              f"{format_currency(combined_stats['current_value']):>13} "
+              f"{format_currency(combined_stats['net_gain']):>13}")
+
+        # Combined Total Gains Summary
+        print("\n" + "="*75)
+        print("  COMBINED GAINS SUMMARY")
+        print("="*75)
+        print(f"\nTotal Amount Invested:    {format_currency(combined_stats['total_invested'])}")
+        print(f"Total Amount Withdrawn:   {format_currency(combined_stats['total_withdrawn'])}")
+        print(f"Current Portfolio Value:  {format_currency(combined_stats['current_value'])}")
+        print(f"\nNet Gain/Loss:            {format_currency(combined_stats['net_gain'])}")
+        print(f"Simple Return:            {combined_stats['simple_return']:.2f}%")
         xirr_str = f"{combined_stats['xirr_percentage']:.2f}%" if combined_stats['xirr_percentage'] is not None else "N/A"
-        print(f"{'COMBINED':<25} {format_currency(combined_stats['total_invested']):>12} {format_currency(combined_stats['current_value']):>12} {xirr_str:>8}")
+        print(f"XIRR (Annualized):        {xirr_str}")
 
     # Ask if user wants to save PDF report
     print("\n" + "="*60)
