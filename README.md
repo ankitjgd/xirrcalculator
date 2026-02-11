@@ -46,7 +46,9 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 ## Quick Start
 
-### Single Account
+### macOS / Linux
+
+#### Single Account
 
 1. Export your Zerodha ledger as a CSV file from Zerodha Console
 2. Place the CSV file in this directory
@@ -58,7 +60,7 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 4. Enter your current holdings value and available cash when prompted
 
-### Multiple Accounts
+#### Multiple Accounts
 
 1. Export ledgers for all your Zerodha accounts as CSV files
 2. Place all CSV files in this directory
@@ -68,10 +70,45 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 ./run_xirr.sh
 ```
 
-4. Select which accounts to include and how to distribute current value
-5. Get individual and combined XIRR results
+### Windows
 
-The script will automatically:
+#### Single Account
+
+1. Export your Zerodha ledger as a CSV file from Zerodha Console
+2. Place the CSV file in this directory
+3. Run the startup script:
+
+**Using Command Prompt:**
+```cmd
+run_xirr.bat your-ledger.csv
+```
+
+**Using PowerShell:**
+```powershell
+.\run_xirr.ps1 your-ledger.csv
+```
+
+4. Enter your current holdings value and available cash when prompted
+
+#### Multiple Accounts
+
+1. Export ledgers for all your Zerodha accounts as CSV files
+2. Place all CSV files in this directory
+3. Run without specifying a file:
+
+**Using Command Prompt:**
+```cmd
+run_xirr.bat
+```
+
+**Using PowerShell:**
+```powershell
+.\run_xirr.ps1
+```
+
+### What the Startup Scripts Do
+
+The scripts will automatically:
 - Create a virtual environment (first run only)
 - Install all dependencies (first run only)
 - Detect and let you select CSV files
@@ -81,14 +118,21 @@ The script will automatically:
 
 - Python 3.7 or higher
 - pip (Python package installer)
+- **Windows users**: Python must be added to PATH during installation
 
 ## Installation
 
 ### Method 1: Using the Startup Script (Recommended)
 
-No manual installation needed! The `run_xirr.sh` script handles everything automatically.
+No manual installation needed! The startup scripts handle everything automatically.
+
+**macOS/Linux:** Use `run_xirr.sh`
+**Windows (Command Prompt):** Use `run_xirr.bat`
+**Windows (PowerShell):** Use `run_xirr.ps1`
 
 ### Method 2: Manual Installation
+
+#### macOS / Linux
 
 1. Create a virtual environment:
 ```bash
@@ -106,24 +150,68 @@ pip install -r requirements.txt
 python xirr_calculator.py your-ledger.csv
 ```
 
+#### Windows
+
+1. Create a virtual environment:
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
+
+2. Install required dependencies:
+```cmd
+pip install -r requirements.txt
+```
+
+3. Run the calculator:
+```cmd
+python xirr_calculator.py your-ledger.csv
+```
+
 ## Usage
 
 ### Using the Startup Script (Easiest)
 
+#### macOS / Linux
 ```bash
-# With default CSV file (ledger-NBN208.csv)
+# With default CSV file scanning
 ./run_xirr.sh
 
-# With custom CSV file
+# With specific CSV file
 ./run_xirr.sh path/to/your-ledger.csv
+```
+
+#### Windows (Command Prompt)
+```cmd
+# With default CSV file scanning
+run_xirr.bat
+
+# With specific CSV file
+run_xirr.bat path\to\your-ledger.csv
+```
+
+#### Windows (PowerShell)
+```powershell
+# With default CSV file scanning
+.\run_xirr.ps1
+
+# With specific CSV file
+.\run_xirr.ps1 path\to\your-ledger.csv
 ```
 
 ### Direct Python Execution
 
 If you've manually installed dependencies in a virtual environment:
 
+#### macOS / Linux
 ```bash
 source venv/bin/activate
+python xirr_calculator.py ledger-NBN208.csv
+```
+
+#### Windows
+```cmd
+venv\Scripts\activate
 python xirr_calculator.py ledger-NBN208.csv
 ```
 
@@ -332,18 +420,43 @@ XIRR provides a more accurate picture by considering all these factors.
 
 ## Troubleshooting
 
-### "No fund additions found in the ledger"
+### General Issues
+
+#### "No fund additions found in the ledger"
 - Ensure your CSV file contains transactions with "Funds added" in the particulars column
 - Verify you're using the correct Zerodha ledger format
 
-### "Could not converge to a solution"
+#### "Could not converge to a solution"
 - This usually happens with very irregular cash flows or extreme values
 - Verify your current holdings and cash values are correct
 - Ensure you have at least 2 transactions (deposits/withdrawals)
 
-### "File not found"
+#### "File not found"
 - Check that the CSV file path is correct
 - Make sure the file is in the same directory or provide the full path
+
+### Windows-Specific Issues
+
+#### "Python is not recognized as an internal or external command"
+- Python is not in your system PATH
+- Reinstall Python and check "Add Python to PATH" during installation
+- Or add Python to PATH manually: System Properties → Environment Variables → PATH
+
+#### "Execution of scripts is disabled on this system" (PowerShell)
+- PowerShell execution policy is preventing script execution
+- Run PowerShell as Administrator and execute:
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
+- Alternative: Use the batch script (`run_xirr.bat`) instead
+
+#### "Access is denied" or Permission errors
+- Run Command Prompt or PowerShell as Administrator
+- Or ensure you have write permissions in the directory
+
+#### Virtual environment activation fails
+- Close any Python processes or IDEs that might be using the venv
+- Delete the `venv` folder and run the script again to recreate it
 
 ## Dependencies
 
