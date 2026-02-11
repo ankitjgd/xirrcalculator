@@ -338,97 +338,6 @@ def calculate_yearwise_summary(outflows, inflows):
     return yearly_summary
 
 
-def get_fiscal_year_dates(fy_string):
-    """
-    Get start and end dates for a fiscal year string like 'FY 2023-24'.
-    Returns (start_date, end_date)
-    """
-    # Extract starting year from FY string (e.g., "FY 2023-24" -> 2023)
-    start_year = int(fy_string.split()[1].split('-')[0])
-
-    # Fiscal year runs from April 1 to March 31
-    fy_start = datetime(start_year, 4, 1)
-    fy_end = datetime(start_year + 1, 3, 31, 23, 59, 59)
-
-    return fy_start, fy_end
-
-
-def calculate_yearwise_xirr(outflows, inflows, current_value):
-    """
-    Calculate XIRR for each fiscal year (cumulative from start to end of each FY).
-    Note: For past years, we can only show cumulative XIRR up to current date.
-    """
-    today = datetime.now()
-
-    # Get all transactions with dates
-    transactions = []
-    for _, row in outflows.iterrows():
-        transactions.append({
-            'date': pd.to_datetime(row['date']),
-            'amount': row['amount'],
-            'fy': get_fiscal_year(pd.to_datetime(row['date']))
-        })
-    for _, row in inflows.iterrows():
-        transactions.append({
-            'date': pd.to_datetime(row['date']),
-            'amount': row['amount'],
-            'fy': get_fiscal_year(pd.to_datetime(row['date']))
-        })
-
-    if not transactions:
-        return []
-
-    # Sort by date
-    transactions = sorted(transactions, key=lambda x: x['date'])
-
-    # Get all unique fiscal years
-    all_fys = sorted(set(t['fy'] for t in transactions))
-    current_fy = get_fiscal_year(today)
-
-    yearwise_xirr = []
-
-    # Calculate cumulative XIRR up to end of each fiscal year
-    for fy in all_fys:
-        fy_start, fy_end = get_fiscal_year_dates(fy)
-
-        # If this is current FY, use today's date; otherwise use FY end date
-        if fy == current_fy:
-            calculation_date = today
-        else:
-            calculation_date = fy_end
-
-        # Get all transactions up to this date
-        fy_transactions = [t for t in transactions if t['date'] <= calculation_date]
-
-        if not fy_transactions:
-            continue
-
-        # For current FY, use actual current value
-        # For past FYs, we can't calculate without historical data, so skip
-        if fy != current_fy:
-            continue
-
-        # Calculate cumulative XIRR from start to current date
-        cash_flows = [t['amount'] for t in fy_transactions]
-        dates = [t['date'] for t in fy_transactions]
-        cash_flows.append(current_value)
-        dates.append(calculation_date)
-
-        try:
-            xirr_rate = calculate_xirr(cash_flows, dates)
-            xirr_percentage = xirr_rate * 100
-        except:
-            xirr_percentage = None
-
-        yearwise_xirr.append({
-            'year': fy,
-            'xirr': xirr_percentage,
-            'period': f"{fy_transactions[0]['date'].strftime('%b %Y')} to {calculation_date.strftime('%b %Y')}"
-        })
-
-    return yearwise_xirr
-
-
 def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
     """Calculate portfolio statistics for a given set of transactions."""
     today = datetime.now()
@@ -476,9 +385,8 @@ def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
     except Exception as e:
         xirr_error = str(e)
 
-    # Calculate year-wise summary
+    # Calculate fiscal year-wise summary
     yearly_summary = calculate_yearwise_summary(outflows, inflows)
-    yearwise_xirr = calculate_yearwise_xirr(outflows, inflows, current_value)
 
     return {
         'file_name': file_name,
@@ -494,8 +402,7 @@ def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
         'xirr_error': xirr_error,
         'num_outflows': len(outflows),
         'num_inflows': len(inflows),
-        'yearly_summary': yearly_summary,
-        'yearwise_xirr': yearwise_xirr
+        'yearly_summary': yearly_summary
     }
 
 
@@ -565,18 +472,6 @@ def display_portfolio_stats(stats, title="Investment Analysis"):
               f"{format_currency(cumulative_withdrawn):>14} "
               f"{format_currency(cumulative_withdrawn - cumulative_invested):>14} "
               f"{'':>14}")
-
-    # Display fiscal year-wise XIRR if available
-    if stats['yearwise_xirr']:
-        print(f"\n{'-'*78}")
-        print("  Fiscal Year-wise XIRR (Cumulative from start)")
-        print(f"{'-'*78}")
-        for year_data in stats['yearwise_xirr']:
-            xirr_str = f"{year_data['xirr']:.2f}%" if year_data['xirr'] is not None else "N/A"
-            print(f"  {year_data['year']}: {xirr_str} ({year_data['period']})")
-
-        print(f"\n  Note: Individual fiscal year returns (e.g., FY 2023-24: 10%)")
-        print(f"  require historical portfolio values at each year-end.")
 
 
 def main():
