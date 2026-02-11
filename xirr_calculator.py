@@ -243,8 +243,8 @@ def format_currency(amount):
 
 
 def format_currency_pdf(amount):
-    """Format amount as Indian currency for PDF (ASCII-compatible)."""
-    return f"Rs. {amount:,.2f}"
+    """Format amount for PDF (without currency symbol to save space)."""
+    return f"{amount:,.2f}"
 
 
 def find_csv_files(directory="."):
