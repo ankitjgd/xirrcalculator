@@ -262,9 +262,9 @@ def main():
                     outflows_new, inflows_new, account_id = load_and_parse_ledger(temp_path, pdf_password)
                     os.remove(temp_path)
 
-                    # Use filename as account_id for CSV files
+                    # Use filename (without folder path) as account_id for CSV files
                     if account_id is None:
-                        account_id = filename
+                        account_id = filename  # filename is already without path in uploaded files
 
                     # Store file info
                     file_info[filename] = {

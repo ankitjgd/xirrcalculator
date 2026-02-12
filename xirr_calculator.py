@@ -1109,9 +1109,9 @@ def main():
         print(f"\n[Scanning: {ledger_file}]")
         outflows, inflows, account_id = load_and_parse_ledger(ledger_file, pdf_password)
 
-        # For CSV files (Zerodha), use filename as account_id
+        # For CSV files (Zerodha), use filename (without folder path) as account_id
         if account_id is None:
-            account_id = ledger_file
+            account_id = os.path.basename(ledger_file)
 
         # Store file info
         file_info[ledger_file] = {
