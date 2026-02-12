@@ -1011,11 +1011,20 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
         # Comparison table
         elements.append(Paragraph("Account Comparison", styles['Heading3']))
 
+        # Create a style for table cells with word wrapping
+        cell_style = ParagraphStyle(
+            'CellStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            alignment=TA_CENTER,
+            fontName='Helvetica'
+        )
+
         comparison_data = [['Account', 'Invested', 'Withdrawn', 'Current', 'Gain/Loss']]
 
         for stats in individual_stats:
             comparison_data.append([
-                stats['file_name'],
+                Paragraph(stats['file_name'], cell_style),  # Wrap in Paragraph for text wrapping
                 format_currency_pdf(stats['total_invested']),
                 format_currency_pdf(stats['total_withdrawn']),
                 format_currency_pdf(stats['current_value']),
@@ -1024,7 +1033,7 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
 
         # Add combined row
         comparison_data.append([
-            'COMBINED',
+            Paragraph('COMBINED', cell_style),
             format_currency_pdf(combined_stats['total_invested']),
             format_currency_pdf(combined_stats['total_withdrawn']),
             format_currency_pdf(combined_stats['current_value']),
@@ -1036,6 +1045,7 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3f51b5')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Vertical alignment
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
