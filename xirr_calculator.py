@@ -13,7 +13,7 @@ import os
 import glob
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 from scipy.optimize import newton, brentq
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
@@ -21,6 +21,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+import yfinance as yf
 
 
 def calculate_xirr(cash_flows, dates, guess=0.1):
@@ -143,6 +144,175 @@ def calculate_xirr(cash_flows, dates, guess=0.1):
         )
 
     raise ValueError("Could not converge to a solution. This may indicate unusual cash flow patterns.")
+
+
+def fetch_nifty50_data(start_date, end_date):
+    """
+    Fetch Nifty 50 historical data from Yahoo Finance.
+
+    Args:
+        start_date: Start date (datetime)
+        end_date: End date (datetime)
+
+    Returns:
+        DataFrame with date and close price, or None if fetch fails
+    """
+    try:
+        # Add buffer days to ensure we have data
+        start_date_buffered = start_date - timedelta(days=10)
+        end_date_buffered = end_date + timedelta(days=5)
+
+        # Fetch Nifty 50 data (^NSEI is the Yahoo Finance ticker for Nifty 50)
+        nifty = yf.download('^NSEI', start=start_date_buffered, end=end_date_buffered, progress=False)
+
+        if nifty.empty:
+            return None
+
+        # Get close prices and reset index to make date a column
+        nifty_data = nifty[['Close']].copy()
+        nifty_data.reset_index(inplace=True)
+        nifty_data.columns = ['date', 'close']
+
+        # Convert date to datetime without timezone
+        nifty_data['date'] = pd.to_datetime(nifty_data['date']).dt.tz_localize(None)
+
+        return nifty_data
+
+    except Exception as e:
+        print(f"\nWarning: Could not fetch Nifty 50 data: {e}")
+        return None
+
+
+def calculate_nifty50_portfolio(outflows, inflows, nifty_data):
+    """
+    Calculate hypothetical portfolio value if invested in Nifty 50 on same dates.
+    Tracks units bought on investments and units sold on withdrawals.
+
+    Args:
+        outflows: DataFrame with 'date' and 'amount' columns (negative values)
+        inflows: DataFrame with 'date' and 'amount' columns (positive values)
+        nifty_data: DataFrame with Nifty 50 historical prices
+
+    Returns:
+        dict with portfolio value and XIRR, or None if calculation fails
+    """
+    if nifty_data is None or nifty_data.empty:
+        return None
+
+    try:
+        # Combine all transactions and sort by date
+        transactions = []
+
+        # Add investments (outflows - buying units)
+        for _, row in outflows.iterrows():
+            transactions.append({
+                'date': pd.to_datetime(row['date']),
+                'amount': row['amount'],  # negative
+                'type': 'investment'
+            })
+
+        # Add withdrawals (inflows - selling units)
+        for _, row in inflows.iterrows():
+            transactions.append({
+                'date': pd.to_datetime(row['date']),
+                'amount': row['amount'],  # positive
+                'type': 'withdrawal'
+            })
+
+        # Sort by date
+        transactions = sorted(transactions, key=lambda x: x['date'])
+
+        # Track units and invested amount
+        total_units = 0
+        total_invested_amount = 0
+
+        # Process each transaction
+        for trans in transactions:
+            trans_date = trans['date']
+
+            # Find closest Nifty 50 price (forward fill for weekends/holidays)
+            nifty_price = None
+
+            # Try exact date first
+            exact_match = nifty_data[nifty_data['date'] == trans_date]
+            if not exact_match.empty:
+                nifty_price = exact_match.iloc[0]['close']
+            else:
+                # Find nearest future date (next trading day)
+                future_dates = nifty_data[nifty_data['date'] > trans_date]
+                if not future_dates.empty:
+                    nifty_price = future_dates.iloc[0]['close']
+                else:
+                    # If no future date, use last available price
+                    nifty_price = nifty_data.iloc[-1]['close']
+
+            if nifty_price is None or nifty_price == 0:
+                continue
+
+            if trans['type'] == 'investment':
+                # Buy units with this investment amount
+                investment_amount = abs(trans['amount'])
+                units_bought = investment_amount / nifty_price
+                total_units += units_bought
+                total_invested_amount += investment_amount
+
+            elif trans['type'] == 'withdrawal':
+                # Sell proportional units for this withdrawal
+                withdrawal_amount = abs(trans['amount'])
+
+                if total_units > 0:
+                    # Calculate what percentage of portfolio we're withdrawing
+                    current_portfolio_value = total_units * nifty_price
+
+                    if current_portfolio_value > 0:
+                        withdrawal_percentage = withdrawal_amount / current_portfolio_value
+                        units_to_sell = total_units * withdrawal_percentage
+                        total_units -= units_to_sell
+
+                        # Ensure we don't go negative
+                        if total_units < 0:
+                            total_units = 0
+
+        # Get latest Nifty 50 price for current value
+        latest_price = nifty_data.iloc[-1]['close']
+        current_value = total_units * latest_price
+
+        # Calculate XIRR for Nifty 50 portfolio
+        cash_flows = []
+        dates = []
+
+        # Add outflows (investments)
+        for _, row in outflows.iterrows():
+            dates.append(pd.to_datetime(row['date']))
+            cash_flows.append(row['amount'])
+
+        # Add inflows (withdrawals)
+        for _, row in inflows.iterrows():
+            dates.append(pd.to_datetime(row['date']))
+            cash_flows.append(row['amount'])
+
+        # Add current value
+        dates.append(datetime.now())
+        cash_flows.append(current_value)
+
+        # Calculate XIRR
+        nifty_xirr = None
+        try:
+            nifty_xirr_rate = calculate_xirr(cash_flows, dates)
+            nifty_xirr = nifty_xirr_rate * 100
+        except:
+            nifty_xirr = None
+
+        return {
+            'current_value': current_value,
+            'xirr_percentage': nifty_xirr,
+            'units': total_units,
+            'latest_price': latest_price
+        }
+
+    except Exception as e:
+        print(f"\nWarning: Could not calculate Nifty 50 comparison: {e}")
+        return None
 
 
 def load_and_parse_ledger(csv_file):
@@ -341,6 +511,18 @@ def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
     except Exception as e:
         xirr_error = str(e)
 
+    # Calculate Nifty 50 comparison
+    nifty50_stats = None
+    if len(outflows) > 0:
+        try:
+            # Fetch Nifty 50 data for the investment period
+            nifty_data = fetch_nifty50_data(first_date, today)
+            if nifty_data is not None:
+                nifty50_stats = calculate_nifty50_portfolio(outflows, inflows, nifty_data)
+        except Exception as e:
+            print(f"\nNote: Nifty 50 comparison unavailable: {e}")
+            nifty50_stats = None
+
     return {
         'file_name': file_name,
         'first_date': first_date,
@@ -354,7 +536,8 @@ def calculate_portfolio_stats(outflows, inflows, current_value, file_name=""):
         'xirr_percentage': xirr_percentage,
         'xirr_error': xirr_error,
         'num_outflows': len(outflows),
-        'num_inflows': len(inflows)
+        'num_inflows': len(inflows),
+        'nifty50_stats': nifty50_stats
     }
 
 
@@ -395,6 +578,41 @@ def display_portfolio_stats(stats, title="Investment Analysis"):
             print(f"\nReason: {stats['xirr_error']}")
             if "extreme losses" in stats['xirr_error'].lower():
                 print("\nThe simple return percentage reflects the overall performance.")
+
+    # Display Nifty 50 comparison if available
+    if stats.get('nifty50_stats'):
+        nifty_stats = stats['nifty50_stats']
+        print(f"\n{'-'*60}")
+        print("  NIFTY 50 BENCHMARK COMPARISON")
+        print(f"{'-'*60}")
+
+        print(f"\nIf you had invested the same amounts on the same dates in Nifty 50:")
+        print(f"  Portfolio value: {format_currency(nifty_stats['current_value'])}")
+        print(f"  Units held: {nifty_stats['units']:.2f}")
+        print(f"  Current Nifty 50: {nifty_stats['latest_price']:.2f}")
+
+        if nifty_stats['xirr_percentage'] is not None:
+            print(f"  Nifty 50 XIRR: {nifty_stats['xirr_percentage']:.2f}%")
+
+            if stats['xirr_percentage'] is not None:
+                # Calculate outperformance
+                outperformance = stats['xirr_percentage'] - nifty_stats['xirr_percentage']
+                if outperformance > 0:
+                    print(f"\n✓ Your portfolio OUTPERFORMED Nifty 50 by {outperformance:.2f}%")
+                elif outperformance < 0:
+                    print(f"\n✗ Your portfolio UNDERPERFORMED Nifty 50 by {abs(outperformance):.2f}%")
+                else:
+                    print(f"\n= Your portfolio matched Nifty 50 performance")
+
+                # Calculate absolute difference in value
+                value_diff = stats['current_value'] - nifty_stats['current_value']
+                print(f"  Value difference: {format_currency(value_diff)}")
+        else:
+            print(f"  Nifty 50 XIRR: Could not be calculated")
+    else:
+        print(f"\n{'-'*60}")
+        print("  Note: Nifty 50 comparison unavailable")
+        print(f"{'-'*60}")
 
 
 def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.pdf"):
@@ -473,6 +691,64 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
 
     elements.append(summary_table)
     elements.append(Spacer(1, 20))
+
+    # Nifty 50 Benchmark Comparison
+    if combined_stats.get('nifty50_stats'):
+        nifty_stats = combined_stats['nifty50_stats']
+        elements.append(Paragraph("Nifty 50 Benchmark Comparison", heading_style))
+
+        nifty_data = [
+            ['Metric', 'Your Portfolio', 'Nifty 50'],
+            ['Current Value', format_currency_pdf(combined_stats['current_value']),
+             format_currency_pdf(nifty_stats['current_value'])],
+        ]
+
+        if combined_stats['xirr_percentage'] is not None and nifty_stats['xirr_percentage'] is not None:
+            nifty_data.append(['XIRR (Annualized)',
+                              f"{combined_stats['xirr_percentage']:.2f}%",
+                              f"{nifty_stats['xirr_percentage']:.2f}%"])
+
+            outperformance = combined_stats['xirr_percentage'] - nifty_stats['xirr_percentage']
+            if outperformance > 0:
+                performance_text = f"OUTPERFORMED by {outperformance:.2f}%"
+            elif outperformance < 0:
+                performance_text = f"UNDERPERFORMED by {abs(outperformance):.2f}%"
+            else:
+                performance_text = "Matched performance"
+
+            nifty_data.append(['Performance vs Nifty 50', performance_text, ''])
+
+            value_diff = combined_stats['current_value'] - nifty_stats['current_value']
+            nifty_data.append(['Value Difference', format_currency_pdf(value_diff), ''])
+
+        nifty_data.append(['Nifty 50 Units Held', '', f"{nifty_stats['units']:.2f}"])
+        nifty_data.append(['Current Nifty 50 Price', '', f"{nifty_stats['latest_price']:.2f}"])
+
+        nifty_table = Table(nifty_data, colWidths=[2*inch, 2*inch, 2*inch])
+        nifty_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#00897b')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+
+        elements.append(nifty_table)
+        elements.append(Spacer(1, 12))
+
+        # Add explanation
+        explanation = Paragraph(
+            "<i>Note: This comparison shows how your portfolio would have performed if you had invested "
+            "the same amounts on the same dates in the Nifty 50 index. Withdrawals are also accounted for.</i>",
+            styles['Normal']
+        )
+        elements.append(explanation)
+        elements.append(Spacer(1, 20))
 
     # Individual Account Analysis (if multiple accounts)
     if len(individual_stats) > 1:

@@ -29,6 +29,12 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
   - Net gain/loss calculation
   - Simple return percentage
   - Annualized XIRR percentage
+- **Nifty 50 Benchmark Comparison** 📊:
+  - Automatic comparison with Nifty 50 index performance
+  - Shows hypothetical returns if invested in Nifty 50 on same dates
+  - Accounts for both investments and withdrawals
+  - Displays outperformance/underperformance metrics
+  - Calculates value difference between your portfolio and index
 
 ### PDF Report Generation 📄
 - **Professional PDF Reports**: Generate beautifully formatted PDF reports
@@ -455,6 +461,19 @@ Net gain/loss: ₹-152,677.00
 **************************************************
   XIRR: 12.34%
 **************************************************
+
+------------------------------------------------------------
+  NIFTY 50 BENCHMARK COMPARISON
+------------------------------------------------------------
+
+If you had invested the same amounts on the same dates in Nifty 50:
+  Portfolio value: ₹480,000.00
+  Units held: 234.56
+  Current Nifty 50: 2046.78
+  Nifty 50 XIRR: 10.25%
+
+✓ Your portfolio OUTPERFORMED Nifty 50 by 2.09%
+  Value difference: ₹35,000.00
 ```
 
 ## How It Works
@@ -471,6 +490,12 @@ Net gain/loss: ₹-152,677.00
    - Brent's method (fallback for complex scenarios)
    - Grid search (for extreme cases)
    - Finds the annualized return rate that makes NPV = 0
+4. **Nifty 50 Benchmark Comparison**:
+   - Fetches historical Nifty 50 data from Yahoo Finance
+   - Simulates buying Nifty 50 units on each investment date
+   - Simulates selling proportional units on each withdrawal date
+   - Calculates hypothetical portfolio value and XIRR
+   - Compares your portfolio performance vs benchmark
 
 ## Output Sections
 
@@ -478,12 +503,14 @@ Net gain/loss: ₹-152,677.00
 1. **Portfolio Summary**: Investment period, transaction counts
 2. **Financial Metrics**: Total invested, withdrawn, current value
 3. **Performance**: Net gain/loss, simple return, XIRR
+4. **Nifty 50 Comparison**: Benchmark performance and outperformance metrics
 
 ### For Multiple Accounts:
 1. **Individual Account Analysis**: Detailed breakdown per account
 2. **Combined Portfolio Analysis**: Aggregate metrics across all accounts
-3. **Summary Comparison Table**: Side-by-side comparison with gain/loss column
-4. **PDF Export Option**: Save professional report
+3. **Nifty 50 Benchmark**: Comparison with index performance
+4. **Summary Comparison Table**: Side-by-side comparison with gain/loss column
+5. **PDF Export Option**: Save professional report with all comparisons
 
 ## Understanding Your Results
 
@@ -550,8 +577,9 @@ The calculator automatically installs these Python packages:
 - `numpy` - Numerical computations
 - `scipy` - Optimization methods for XIRR calculation
 - `reportlab` - PDF report generation
+- `yfinance` - Fetching Nifty 50 historical data for benchmark comparison
 
-All dependencies are installed automatically when using `run_xirr.sh`.
+All dependencies are installed automatically when using the startup scripts (`run_xirr.sh`, `run_xirr.bat`, or `run_xirr.ps1`).
 
 ## CSV Format
 
