@@ -69,16 +69,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-def process_uploaded_file(uploaded_file):
-    """Process an uploaded CSV file and extract transactions."""
+def process_uploaded_file(uploaded_file, pdf_password=None):
+    """Process an uploaded ledger file (CSV or PDF) and extract transactions."""
     try:
         # Save uploaded file temporarily
         temp_path = f"temp_{uploaded_file.name}"
         with open(temp_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        # Parse the ledger
-        outflows, inflows = load_and_parse_ledger(temp_path)
+        # Parse the ledger (automatically detects file type)
+        outflows, inflows = load_and_parse_ledger(temp_path, pdf_password)
 
         # Clean up temp file
         os.remove(temp_path)
@@ -166,22 +166,35 @@ def main():
     Calculate the Extended Internal Rate of Return (XIRR) for your trading portfolio.
     Compare your performance with the Nifty 50 index benchmark.
 
-    **Currently supports:** Zerodha | **Coming soon:** Other brokers
+    **Supported brokers:** Zerodha (CSV) | Groww (PDF)
     """)
 
     # Sidebar
     with st.sidebar:
         st.header("📁 Upload Ledger Files")
         st.markdown("""
-        Upload one or more Zerodha ledger CSV files exported from Zerodha Console.
+        Upload ledger files from your broker:
+        - **Zerodha**: CSV files
+        - **Groww**: PDF files (password-protected)
         """)
 
         uploaded_files = st.file_uploader(
-            "Choose CSV file(s)",
-            type=['csv'],
+            "Choose ledger file(s)",
+            type=['csv', 'pdf'],
             accept_multiple_files=True,
-            help="You can upload multiple CSV files for multi-account analysis"
+            help="You can upload multiple files for multi-account analysis"
         )
+
+        # PDF password input
+        pdf_password = None
+        if uploaded_files and any(f.name.endswith('.pdf') for f in uploaded_files):
+            st.markdown("---")
+            st.markdown("**PDF Password** (for Groww ledgers)")
+            pdf_password = st.text_input(
+                "Enter PDF password",
+                type="password",
+                help="Usually your PAN number (uppercase)"
+            )
 
         st.markdown("---")
         st.markdown("""
@@ -195,16 +208,25 @@ def main():
         """)
 
     if not uploaded_files:
-        st.info("👈 Please upload your Zerodha ledger CSV file(s) from the sidebar to begin.")
+        st.info("👈 Please upload your broker ledger file(s) from the sidebar to begin.")
 
         # Show sample data info
-        with st.expander("ℹ️ How to get your Zerodha ledger"):
+        with st.expander("ℹ️ How to get your broker ledger"):
             st.markdown("""
+            **Zerodha (CSV):**
             1. Log in to [Zerodha Console](https://console.zerodha.com/)
             2. Go to **Reports** → **Ledger**
             3. Select date range
             4. Click **Download** and choose CSV format
             5. Upload the downloaded CSV file(s) here
+
+            **Groww (PDF):**
+            1. Log in to [Groww](https://groww.in/)
+            2. Go to **Profile** → **Reports & Statements**
+            3. Select **Ledger Statement**
+            4. Select date range (max 1 year per PDF)
+            5. Download the PDF file(s)
+            6. Upload the PDF file(s) here with your PAN as password
             """)
 
         with st.expander("📊 View Sample Report"):
@@ -224,7 +246,7 @@ def main():
 
     for uploaded_file in uploaded_files:
         with st.expander(f"📄 {uploaded_file.name}", expanded=True):
-            outflows, inflows, filename = process_uploaded_file(uploaded_file)
+            outflows, inflows, filename = process_uploaded_file(uploaded_file, pdf_password)
 
             if outflows is not None and inflows is not None:
                 st.success(f"✓ Found {len(outflows)} investments and {len(inflows)} withdrawals")

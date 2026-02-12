@@ -24,6 +24,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 import yfinance as yf
+import pdfplumber
 
 
 def calculate_xirr(cash_flows, dates, guess=0.1):
@@ -317,14 +318,161 @@ def calculate_nifty50_portfolio(outflows, inflows, nifty_data):
         return None
 
 
-def load_and_parse_ledger(csv_file):
+def load_and_parse_groww_pdf(pdf_file, password=None):
+    """
+    Load Groww ledger PDF and extract relevant transactions.
+
+    Returns:
+        tuple: (outflows_df, inflows_df) where each is a DataFrame with 'date' and 'amount' columns
+    """
+    print(f"\nLoading Groww PDF ledger: {pdf_file}")
+
+    try:
+        # Try to open PDF with password if provided
+        with pdfplumber.open(pdf_file, password=password or "") as pdf:
+            all_deposits = []
+            all_withdrawals = []
+
+            # Extract tables from all pages
+            for page_num, page in enumerate(pdf.pages):
+                tables = page.extract_tables()
+
+                if not tables:
+                    continue
+
+                for table in tables:
+                    # Skip if table is too small
+                    if len(table) < 2:
+                        continue
+
+                    # Find column indices (header is usually first row)
+                    header = table[0]
+
+                    # Try to find relevant columns
+                    date_col = None
+                    segment_type_col = None
+                    credit_col = None
+                    debit_col = None
+
+                    for i, col in enumerate(header):
+                        if col and 'Transaction' in col and 'Date' in col:
+                            date_col = i
+                        elif col and 'Segment' in col and 'Type' in col:
+                            segment_type_col = i
+                        elif col and 'Credit' in col:
+                            credit_col = i
+                        elif col and 'Debit' in col:
+                            debit_col = i
+
+                    # Skip if we can't find required columns
+                    if date_col is None or segment_type_col is None or credit_col is None or debit_col is None:
+                        continue
+
+                    # Process data rows (skip header)
+                    for row in table[1:]:
+                        if len(row) <= max(date_col, segment_type_col, credit_col, debit_col):
+                            continue
+
+                        transaction_date = row[date_col]
+                        segment_type = row[segment_type_col]
+                        credit_amount = row[credit_col]
+                        debit_amount = row[debit_col]
+
+                        # Skip empty rows
+                        if not transaction_date or not segment_type:
+                            continue
+
+                        # Parse date (format: DD/MM/YYYY)
+                        try:
+                            date_str = transaction_date.strip()
+                            date_obj = datetime.strptime(date_str, '%d/%m/%Y')
+                            date_formatted = date_obj.strftime('%Y-%m-%d')
+                        except:
+                            continue
+
+                        # Extract deposits (RAZORPAY_DEPOSIT, etc.) - these are fund additions (outflows)
+                        if 'DEPOSIT' in segment_type.upper() and credit_amount:
+                            try:
+                                amount = float(credit_amount.replace(',', '').strip())
+                                if amount > 0:
+                                    all_deposits.append({
+                                        'date': date_formatted,
+                                        'amount': -amount  # Make negative (outflow)
+                                    })
+                            except:
+                                continue
+
+                        # Extract withdrawals (GROWW_WITHDRAW) - these are payouts (inflows)
+                        if 'WITHDRAW' in segment_type.upper() and debit_amount:
+                            try:
+                                amount = float(debit_amount.replace(',', '').strip())
+                                if amount > 0:
+                                    all_withdrawals.append({
+                                        'date': date_formatted,
+                                        'amount': amount  # Positive (inflow)
+                                    })
+                            except:
+                                continue
+
+            # Convert to DataFrames
+            outflows_df = pd.DataFrame(all_deposits)
+            inflows_df = pd.DataFrame(all_withdrawals)
+
+            print(f"Found {len(outflows_df)} fund additions (deposits)")
+            print(f"Found {len(inflows_df)} withdrawals")
+
+            if len(outflows_df) == 0:
+                print("Error: No fund additions found in the PDF ledger.")
+                sys.exit(1)
+
+            return outflows_df, inflows_df
+
+    except Exception as e:
+        if "password" in str(e).lower():
+            print(f"Error: PDF is password-protected. Please provide the password.")
+            print("Common passwords: Your PAN number (lowercase) or Date of Birth (DDMMYYYY)")
+            sys.exit(1)
+        else:
+            print(f"Error reading PDF: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+
+
+def load_and_parse_ledger(ledger_file, password=None):
+    """
+    Load ledger file (CSV or PDF) and extract relevant transactions.
+    Automatically detects file type and routes to appropriate parser.
+
+    Args:
+        ledger_file: Path to ledger file (CSV or PDF)
+        password: Optional password for PDF files
+
+    Returns:
+        tuple: (outflows_df, inflows_df) where each is a DataFrame with 'date' and 'amount' columns
+    """
+    # Detect file type
+    file_extension = os.path.splitext(ledger_file)[1].lower()
+
+    if file_extension == '.pdf':
+        # Handle Groww PDF ledger
+        return load_and_parse_groww_pdf(ledger_file, password)
+    elif file_extension == '.csv':
+        # Handle Zerodha CSV ledger
+        return load_and_parse_zerodha_csv(ledger_file)
+    else:
+        print(f"Error: Unsupported file type '{file_extension}'. Supported types: .csv, .pdf")
+        sys.exit(1)
+
+
+def load_and_parse_zerodha_csv(csv_file):
     """
     Load Zerodha ledger CSV and extract relevant transactions.
 
     Returns:
         tuple: (outflows_df, inflows_df) where each is a DataFrame with 'date' and 'amount' columns
     """
-    print(f"\nLoading ledger: {csv_file}")
+    print(f"\nLoading Zerodha CSV ledger: {csv_file}")
 
     try:
         df = pd.read_csv(csv_file)
@@ -419,33 +567,39 @@ def format_currency_pdf(amount):
     return f"{amount:,.2f}"
 
 
-def find_csv_files(directory="ledger"):
-    """Find all CSV files in the given directory."""
+def find_ledger_files(directory="ledger"):
+    """Find all ledger files (CSV and PDF) in the given directory."""
     # Create ledger directory if it doesn't exist
     if not os.path.exists(directory):
         os.makedirs(directory)
-        print(f"\nCreated '{directory}/' folder. Please place your Zerodha ledger CSV files there.")
+        print(f"\nCreated '{directory}/' folder. Please place your broker ledger files (CSV or PDF) there.")
         return []
 
+    # Find both CSV and PDF files
     csv_files = glob.glob(os.path.join(directory, "*.csv"))
-    # Return full paths relative to ledger folder
-    csv_files = [os.path.join(directory, os.path.basename(f)) for f in csv_files]
-    return sorted(csv_files)
+    pdf_files = glob.glob(os.path.join(directory, "*.pdf"))
+
+    # Combine and return sorted list
+    all_files = csv_files + pdf_files
+    all_files = [os.path.join(directory, os.path.basename(f)) for f in all_files]
+    return sorted(all_files)
 
 
-def select_csv_files(csv_files):
-    """Let user select which CSV files to include in the analysis."""
-    if len(csv_files) == 0:
-        print("Error: No CSV files found in the current directory.")
+def select_ledger_files(ledger_files):
+    """Let user select which ledger files to include in the analysis."""
+    if len(ledger_files) == 0:
+        print("Error: No ledger files found in the current directory.")
         sys.exit(1)
 
-    if len(csv_files) == 1:
-        print(f"\nFound 1 CSV file: {csv_files[0]}")
-        return csv_files
+    if len(ledger_files) == 1:
+        file_type = "CSV" if ledger_files[0].endswith('.csv') else "PDF"
+        print(f"\nFound 1 {file_type} file: {ledger_files[0]}")
+        return ledger_files
 
-    print(f"\nFound {len(csv_files)} CSV files:")
-    for i, file in enumerate(csv_files, 1):
-        print(f"  {i}. {file}")
+    print(f"\nFound {len(ledger_files)} ledger files:")
+    for i, file in enumerate(ledger_files, 1):
+        file_type = "CSV (Zerodha)" if file.endswith('.csv') else "PDF (Groww)"
+        print(f"  {i}. {file} [{file_type}]")
 
     print("\nSelect files to include in XIRR calculation:")
     print("  - Enter numbers separated by commas (e.g., 1,2,3)")
@@ -456,18 +610,18 @@ def select_csv_files(csv_files):
         selection = input("\nYour selection: ").strip().lower()
 
         if selection == '' or selection == 'all':
-            return csv_files
+            return ledger_files
 
         try:
             # Parse comma-separated numbers
             indices = [int(x.strip()) for x in selection.split(',')]
 
             # Validate indices
-            if all(1 <= i <= len(csv_files) for i in indices):
-                selected_files = [csv_files[i-1] for i in indices]
+            if all(1 <= i <= len(ledger_files) for i in indices):
+                selected_files = [ledger_files[i-1] for i in indices]
                 return selected_files
             else:
-                print(f"Please enter numbers between 1 and {len(csv_files)}")
+                print(f"Please enter numbers between 1 and {len(ledger_files)}")
         except ValueError:
             print("Invalid input. Please enter numbers separated by commas or 'all'")
 
@@ -885,23 +1039,36 @@ def main():
     print("  XIRR Calculator by Ankit Bhardwaj")
     print("="*60)
 
-    # Find all CSV files or use command line argument
+    # Find all ledger files or use command line argument
     if len(sys.argv) > 1:
         # If specific file provided, use only that file
-        csv_files = [sys.argv[1]]
-        print(f"\nUsing specified file: {csv_files[0]}")
+        ledger_files = [sys.argv[1]]
+        print(f"\nUsing specified file: {ledger_files[0]}")
     else:
-        # Scan ledger directory for CSV files
-        csv_files = find_csv_files("ledger")
-        if not csv_files:
-            print("\nNo CSV files found in 'ledger/' folder.")
-            print("Please place your Zerodha ledger CSV files in the 'ledger/' folder and run again.")
+        # Scan ledger directory for both CSV and PDF files
+        ledger_files = find_ledger_files("ledger")
+        if not ledger_files:
+            print("\nNo ledger files found in 'ledger/' folder.")
+            print("Please place your broker ledger files (CSV or PDF) in the 'ledger/' folder and run again.")
+            print("Supported formats:")
+            print("  - Zerodha: CSV files")
+            print("  - Groww: PDF files")
             sys.exit(0)
-        csv_files = select_csv_files(csv_files)
+        ledger_files = select_ledger_files(ledger_files)
 
     print(f"\n{'='*60}")
-    print(f"Selected {len(csv_files)} file(s) for analysis")
+    print(f"Selected {len(ledger_files)} file(s) for analysis")
     print(f"{'='*60}")
+
+    # Check if any PDF files need password
+    pdf_password = None
+    has_pdfs = any(f.endswith('.pdf') for f in ledger_files)
+    if has_pdfs:
+        print("\nNote: Groww PDFs are usually password-protected.")
+        print("Common passwords: Your PAN number (uppercase) or Date of Birth (DDMMYYYY)")
+        pdf_password = input("Enter PDF password (or press Enter to skip): ").strip()
+        if not pdf_password:
+            pdf_password = None
 
     # Process each file and get portfolio values
     file_data = []
@@ -911,16 +1078,16 @@ def main():
     total_holdings = 0
     total_cash = 0
 
-    for csv_file in csv_files:
-        print(f"\n[Processing: {csv_file}]")
-        outflows, inflows = load_and_parse_ledger(csv_file)
+    for ledger_file in ledger_files:
+        print(f"\n[Processing: {ledger_file}]")
+        outflows, inflows = load_and_parse_ledger(ledger_file, pdf_password)
 
         # Store for combined calculation
         all_outflows.append(outflows)
         all_inflows.append(inflows)
 
         # Get portfolio value for this account
-        holdings, cash = get_user_inputs_for_account(csv_file)
+        holdings, cash = get_user_inputs_for_account(ledger_file)
         current_value = holdings + cash
         file_current_values.append(current_value)
         total_holdings += holdings
@@ -932,13 +1099,13 @@ def main():
 
         # Store file info
         file_data.append({
-            'name': csv_file,
+            'name': ledger_file,
             'outflows': outflows,
             'inflows': inflows
         })
 
     # Show combined summary if multiple accounts
-    if len(csv_files) > 1:
+    if len(ledger_files) > 1:
         print(f"\n{'='*60}")
         print("  Combined Portfolio Summary")
         print(f"{'='*60}")
@@ -958,7 +1125,7 @@ def main():
         individual_stats.append(stats)
 
     # Display individual results
-    if len(csv_files) > 1:
+    if len(ledger_files) > 1:
         print("\n\n" + "#"*60)
         print("  INDIVIDUAL ACCOUNT ANALYSIS")
         print("#"*60)
@@ -968,7 +1135,7 @@ def main():
 
     # Calculate combined stats
     print("\n\n" + "#"*60)
-    if len(csv_files) > 1:
+    if len(ledger_files) > 1:
         print("  COMBINED PORTFOLIO ANALYSIS")
     else:
         print("  PORTFOLIO ANALYSIS")
@@ -983,13 +1150,13 @@ def main():
         combined_outflows,
         combined_inflows,
         combined_current_value,
-        "Combined Portfolio" if len(csv_files) > 1 else ""
+        "Combined Portfolio" if len(ledger_files) > 1 else ""
     )
 
-    display_portfolio_stats(combined_stats, "Combined Portfolio" if len(csv_files) > 1 else "Portfolio Summary")
+    display_portfolio_stats(combined_stats, "Combined Portfolio" if len(ledger_files) > 1 else "Portfolio Summary")
 
     # Summary table for multiple files
-    if len(csv_files) > 1:
+    if len(ledger_files) > 1:
         print("\n\n" + "="*75)
         print("  SUMMARY TABLE")
         print("="*75)

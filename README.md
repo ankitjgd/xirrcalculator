@@ -2,8 +2,9 @@
 
 A Python tool (CLI + Web App) to calculate the Extended Internal Rate of Return (XIRR) for your trading portfolio with Nifty 50 benchmark comparison.
 
-**Currently supports:** Zerodha
-**Coming soon:** Support for other brokers
+**Supported brokers:**
+- ✅ **Zerodha** - CSV ledger files
+- ✅ **Groww** - PDF ledger files (password-protected)
 
 ## 🌐 Web App
 
@@ -98,10 +99,12 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
    - Select "Download ZIP"
    - Extract the ZIP file to a folder (e.g., `C:\xirrcalculator`)
 
-2. **Place your CSV files:**
-   - Export your Zerodha ledger(s) from Zerodha Console
-   - Copy the CSV file(s) to the `ledger/` folder inside the calculator directory
+2. **Place your ledger files:**
+   - **For Zerodha**: Export your ledger(s) as CSV from Zerodha Console
+   - **For Groww**: Download your ledger(s) as PDF from Groww (Reports & Statements)
+   - Copy the file(s) to the `ledger/` folder inside the calculator directory
    - The `ledger/` folder will be created automatically on first run if it doesn't exist
+   - **Note**: Groww restricts ledger downloads to 1 year per PDF, so you may need multiple files
 
 #### Step 3: Run the Calculator
 
@@ -173,21 +176,26 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 #### Single Account
 
-1. Export your Zerodha ledger as a CSV file from Zerodha Console
-2. Place the CSV file in the `ledger/` folder
+1. Export your broker ledger:
+   - **Zerodha**: Export as CSV from Zerodha Console
+   - **Groww**: Download as PDF from Groww (Reports & Statements)
+2. Place the file in the `ledger/` folder
 3. Run the startup script:
 
 ```bash
 ./run_xirr.sh
 ```
 
-4. The script will auto-detect CSV files from the `ledger/` folder
-5. Enter your current holdings value and available cash when prompted
+4. The script will auto-detect ledger files from the `ledger/` folder
+5. If using Groww PDFs, enter the password when prompted (usually your PAN number)
+6. Enter your current holdings value and available cash when prompted
 
 #### Multiple Accounts
 
-1. Export ledgers for all your Zerodha accounts as CSV files
-2. Place all CSV files in the `ledger/` folder
+1. Export ledgers for all your accounts:
+   - **Zerodha**: Export as CSV files
+   - **Groww**: Download as PDF files (one per year due to Groww's restriction)
+2. Place all files in the `ledger/` folder
 3. Run without specifying a file:
 
 ```bash
@@ -337,16 +345,17 @@ When prompted, enter:
 
 ### Multi-Account Analysis
 
-If you have multiple Zerodha accounts (or want to analyze ledgers from different periods separately):
+If you have multiple accounts or multiple time periods (especially for Groww's yearly PDFs):
 
-1. Place all CSV files in the `ledger/` folder
+1. Place all ledger files (CSV and/or PDF) in the `ledger/` folder
 2. Run the calculator:
    ```bash
    ./run_xirr.sh
    ```
 3. The calculator will:
-   - Detect all CSV files from the `ledger/` folder
-   - Let you select which accounts to include
+   - Detect all ledger files (CSV and PDF) from the `ledger/` folder
+   - Let you select which files to include
+   - Ask for PDF password if Groww files are detected (usually your PAN number)
    - Ask for current holdings and cash **for each account separately**
 
 4. Get detailed results:
@@ -608,7 +617,9 @@ The calculator automatically installs these Python packages:
 
 All dependencies are installed automatically when using the startup scripts (`run_xirr.sh`, `run_xirr.bat`, or `run_xirr.ps1`).
 
-## CSV Format
+## Supported File Formats
+
+### Zerodha (CSV)
 
 The tool expects a Zerodha ledger CSV with these columns:
 - `particulars`: Transaction description (identifies fund additions, payouts, quarterly settlements)
@@ -620,6 +631,23 @@ The tool expects a Zerodha ledger CSV with these columns:
 - "Funds added" → Counted as investment (outflow)
 - "Payout" → Counted as withdrawal (inflow)
 - "quarterly settlement" → Counted as withdrawal (inflow)
+
+### Groww (PDF)
+
+The tool parses Groww ledger PDFs with these features:
+- **Automatic table extraction** from multi-page PDFs
+- **Password support**: PDFs are usually password-protected with your PAN number
+- **Multi-year support**: Since Groww limits downloads to 1 year, you can combine multiple PDFs
+
+**Supported transaction types:**
+- "RAZORPAY_DEPOSIT" or any deposit type → Counted as investment (outflow)
+- "GROWW_WITHDRAW" → Counted as withdrawal (inflow)
+
+**Important notes for Groww:**
+- PDFs are password-protected (usually your PAN number in uppercase)
+- Groww restricts ledger downloads to 1 year maximum
+- For longer investment periods, download multiple yearly PDFs
+- Place all PDFs in the `ledger/` folder and the calculator will combine them automatically
 
 ## 🚀 Deploying to Streamlit Cloud
 
