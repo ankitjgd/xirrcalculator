@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-XIRR Calculator for Zerodha Portfolio - Streamlit Web App
+XIRR Calculator by Ankit Bhardwaj - Streamlit Web App
 """
 
 import streamlit as st
@@ -23,7 +23,7 @@ from xirr_calculator import (
 
 # Page configuration
 st.set_page_config(
-    page_title="XIRR Calculator - Zerodha Portfolio",
+    page_title="XIRR Calculator by Ankit Bhardwaj",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -160,11 +160,13 @@ def display_nifty_comparison(stats):
 
 def main():
     # Header
-    st.markdown('<div class="main-header">📊 XIRR Calculator for Zerodha Portfolio</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">📊 XIRR Calculator by Ankit Bhardwaj</div>', unsafe_allow_html=True)
 
     st.markdown("""
-    Calculate the Extended Internal Rate of Return (XIRR) for your Zerodha trading account.
-    Compare your portfolio performance with the Nifty 50 index benchmark.
+    Calculate the Extended Internal Rate of Return (XIRR) for your trading portfolio.
+    Compare your performance with the Nifty 50 index benchmark.
+
+    **Currently supports:** Zerodha | **Coming soon:** Other brokers
     """)
 
     # Sidebar

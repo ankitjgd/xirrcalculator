@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-XIRR Calculator for Zerodha Trading Account
+XIRR Calculator by Ankit Bhardwaj
 
 Calculates the Extended Internal Rate of Return (XIRR) based on:
 - Fund additions (outflows - money invested)
 - Withdrawals/Payouts (inflows - money returned)
 - Current portfolio value (holdings + cash)
+
+Currently supports: Zerodha
 """
 
 import sys
@@ -880,7 +882,7 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
 
 def main():
     print("="*60)
-    print("  XIRR Calculator for Zerodha Portfolio")
+    print("  XIRR Calculator by Ankit Bhardwaj")
     print("="*60)
 
     # Find all CSV files or use command line argument

@@ -1,6 +1,9 @@
-# XIRR Calculator for Zerodha Portfolio
+# XIRR Calculator by Ankit Bhardwaj
 
-A Python tool (CLI + Web App) to calculate the Extended Internal Rate of Return (XIRR) for your Zerodha trading account with Nifty 50 benchmark comparison.
+A Python tool (CLI + Web App) to calculate the Extended Internal Rate of Return (XIRR) for your trading portfolio with Nifty 50 benchmark comparison.
+
+**Currently supports:** Zerodha
+**Coming soon:** Support for other brokers
 
 ## 🌐 Web App
 
