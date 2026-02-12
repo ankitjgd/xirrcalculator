@@ -4,7 +4,7 @@ A Python tool (CLI + Web App) to calculate the Extended Internal Rate of Return 
 
 ## 🌐 Web App
 
-**Try it online:** [Coming soon - Deploy to Streamlit Cloud]
+**🚀 Try it online:** [https://xirrcalculatorr.streamlit.app](https://xirrcalculatorr.streamlit.app)
 
 Or run locally:
 ```bash
