@@ -341,13 +341,13 @@ def main():
 
             current_value = holdings + cash
 
-            if current_value > 0:
-                accounts_data.append({
-                    'name': account_name,
-                    'outflows': account_outflows,
-                    'inflows': account_inflows,
-                    'current_value': current_value
-                })
+            # Include accounts even with 0 value (for closed/withdrawn accounts)
+            accounts_data.append({
+                'name': account_name,
+                'outflows': account_outflows,
+                'inflows': account_inflows,
+                'current_value': current_value
+            })
 
     # Calculate and display results
     if accounts_data:
