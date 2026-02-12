@@ -38,12 +38,19 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 ### PDF Report Generation 📄
 - **Professional PDF Reports**: Generate beautifully formatted PDF reports
-  - Auto-cleanup of old PDFs (keeps only the latest)
+  - Saved in `reports/` folder with timestamps
+  - All reports are preserved (no auto-deletion)
   - Custom or auto-timestamped filenames
   - Comprehensive portfolio summary
   - Individual account breakdowns (for multi-account)
+  - Nifty 50 benchmark comparison included
   - Comparison tables with all key metrics
   - Print-friendly layout
+
+### Organized Folder Structure 📁
+- **`ledger/`**: Place your Zerodha CSV files here
+- **`reports/`**: PDF reports are automatically saved here with timestamps
+- Clean and organized - no clutter in the main directory
 
 ### Additional Features
 - **Smart Error Handling**: Gracefully handles extreme loss scenarios where XIRR cannot be calculated
@@ -81,7 +88,8 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 
 2. **Place your CSV files:**
    - Export your Zerodha ledger(s) from Zerodha Console
-   - Copy the CSV file(s) to the calculator folder
+   - Copy the CSV file(s) to the `ledger/` folder inside the calculator directory
+   - The `ledger/` folder will be created automatically on first run if it doesn't exist
 
 #### Step 3: Run the Calculator
 
@@ -154,24 +162,27 @@ XIRR (Extended Internal Rate of Return) is the most accurate way to measure inve
 #### Single Account
 
 1. Export your Zerodha ledger as a CSV file from Zerodha Console
-2. Place the CSV file in this directory
+2. Place the CSV file in the `ledger/` folder
 3. Run the startup script:
 
 ```bash
-./run_xirr.sh your-ledger.csv
+./run_xirr.sh
 ```
 
-4. Enter your current holdings value and available cash when prompted
+4. The script will auto-detect CSV files from the `ledger/` folder
+5. Enter your current holdings value and available cash when prompted
 
 #### Multiple Accounts
 
 1. Export ledgers for all your Zerodha accounts as CSV files
-2. Place all CSV files in this directory
+2. Place all CSV files in the `ledger/` folder
 3. Run without specifying a file:
 
 ```bash
 ./run_xirr.sh
 ```
+
+4. The script will detect all CSV files and let you select which accounts to analyze
 
 ### Windows Quick Reference
 
@@ -316,13 +327,13 @@ When prompted, enter:
 
 If you have multiple Zerodha accounts (or want to analyze ledgers from different periods separately):
 
-1. Place all CSV files in the same directory
-2. Run the calculator without specifying a file:
+1. Place all CSV files in the `ledger/` folder
+2. Run the calculator:
    ```bash
    ./run_xirr.sh
    ```
 3. The calculator will:
-   - Detect all CSV files
+   - Detect all CSV files from the `ledger/` folder
    - Let you select which accounts to include
    - Ask for current holdings and cash **for each account separately**
 
@@ -406,19 +417,19 @@ After completing the XIRR analysis, you'll be prompted to save a PDF report:
 ```
 ============================================================
 Would you like to save this report as PDF? (y/n): y
-Cleaning up 3 old PDF file(s)...
+
 Enter filename (press Enter for 'xirr_report_20260211_174905.pdf'):
 
 Generating PDF report...
-✓ PDF report saved successfully: xirr_report_20260211_174905.pdf
+✓ PDF report saved successfully: reports/xirr_report_20260211_174905.pdf
 ```
 
 **PDF Features:**
 - 📄 Professional formatting with color-coded headers
-- 📊 All analysis sections included (portfolio summary, individual accounts, comparison table)
-- 🧹 Auto-cleanup: Automatically deletes old PDF files before generating new one
-- 📅 Auto-timestamped filenames or custom names
-- 💰 Currency displayed as "Rs." (ASCII-compatible for all PDF viewers)
+- 📊 All analysis sections included (portfolio summary, Nifty 50 comparison, individual accounts)
+- 📁 Saved in `reports/` folder with timestamps
+- 💾 All reports preserved - no auto-deletion
+- 📅 Auto-timestamped filenames ensure no overwriting
 - 🖨️ Print-friendly layout
 
 **Perfect for:**

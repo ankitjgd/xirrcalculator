@@ -417,11 +417,17 @@ def format_currency_pdf(amount):
     return f"{amount:,.2f}"
 
 
-def find_csv_files(directory="."):
+def find_csv_files(directory="ledger"):
     """Find all CSV files in the given directory."""
+    # Create ledger directory if it doesn't exist
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print(f"\nCreated '{directory}/' folder. Please place your Zerodha ledger CSV files there.")
+        return []
+
     csv_files = glob.glob(os.path.join(directory, "*.csv"))
-    # Get just the filenames, not full paths
-    csv_files = [os.path.basename(f) for f in csv_files]
+    # Return full paths relative to ledger folder
+    csv_files = [os.path.join(directory, os.path.basename(f)) for f in csv_files]
     return sorted(csv_files)
 
 
@@ -883,8 +889,12 @@ def main():
         csv_files = [sys.argv[1]]
         print(f"\nUsing specified file: {csv_files[0]}")
     else:
-        # Scan directory for CSV files
-        csv_files = find_csv_files(".")
+        # Scan ledger directory for CSV files
+        csv_files = find_csv_files("ledger")
+        if not csv_files:
+            print("\nNo CSV files found in 'ledger/' folder.")
+            print("Please place your Zerodha ledger CSV files in the 'ledger/' folder and run again.")
+            sys.exit(0)
         csv_files = select_csv_files(csv_files)
 
     print(f"\n{'='*60}")
@@ -1003,34 +1013,38 @@ def main():
     save_pdf = input("Would you like to save this report as PDF? (y/n): ").strip().lower()
 
     if save_pdf in ['y', 'yes']:
-        # Clean up old PDF files
-        try:
-            pdf_files = glob.glob("*.pdf")
-            if pdf_files:
-                print(f"\nCleaning up {len(pdf_files)} old PDF file(s)...")
-                for pdf_file in pdf_files:
-                    try:
-                        os.remove(pdf_file)
-                    except Exception as e:
-                        print(f"  Warning: Could not delete {pdf_file}: {e}")
-        except Exception as e:
-            print(f"Warning: Error during cleanup: {e}")
+        # Create reports directory if it doesn't exist
+        reports_dir = "reports"
+        if not os.path.exists(reports_dir):
+            os.makedirs(reports_dir)
+            print(f"\nCreated '{reports_dir}/' folder for PDF reports.")
 
         # Generate default filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         default_filename = f"xirr_report_{timestamp}.pdf"
 
         custom_name = input(f"Enter filename (press Enter for '{default_filename}'): ").strip()
-        pdf_filename = custom_name if custom_name else default_filename
 
-        # Ensure .pdf extension
-        if not pdf_filename.endswith('.pdf'):
-            pdf_filename += '.pdf'
+        if custom_name:
+            # If user provides custom name, ensure it has timestamp
+            if not custom_name.endswith('.pdf'):
+                custom_name += '.pdf'
+            # Add timestamp if not already in filename
+            if not any(char.isdigit() for char in custom_name):
+                base_name = custom_name.replace('.pdf', '')
+                pdf_filename = f"{base_name}_{timestamp}.pdf"
+            else:
+                pdf_filename = custom_name
+        else:
+            pdf_filename = default_filename
+
+        # Full path with reports directory
+        pdf_filepath = os.path.join(reports_dir, pdf_filename)
 
         try:
             print(f"\nGenerating PDF report...")
-            generate_pdf_report(individual_stats, combined_stats, pdf_filename)
-            print(f"✓ PDF report saved successfully: {pdf_filename}")
+            generate_pdf_report(individual_stats, combined_stats, pdf_filepath)
+            print(f"✓ PDF report saved successfully: {pdf_filepath}")
         except Exception as e:
             print(f"✗ Error generating PDF: {e}")
 

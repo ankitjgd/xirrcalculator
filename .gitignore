@@ -38,10 +38,17 @@ wheels/
 .DS_Store
 Thumbs.db
 
-# Sensitive data
+# Sensitive data - CSV files
 *.csv
 *.xlsx
 !example*.csv
+
+# Ledger folder - keep structure but ignore CSV files
+ledger/*.csv
+ledger/*.xlsx
+
+# Reports folder - keep structure but ignore PDF reports
+reports/*.pdf
 
 # Logs
 *.log
