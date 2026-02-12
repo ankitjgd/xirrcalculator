@@ -703,6 +703,10 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
              format_currency_pdf(nifty_stats['current_value'])],
         ]
 
+        # Track which rows need special formatting
+        performance_row = -1
+        value_diff_row = -1
+
         if combined_stats['xirr_percentage'] is not None and nifty_stats['xirr_percentage'] is not None:
             nifty_data.append(['XIRR (Annualized)',
                               f"{combined_stats['xirr_percentage']:.2f}%",
@@ -711,21 +715,28 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
             outperformance = combined_stats['xirr_percentage'] - nifty_stats['xirr_percentage']
             if outperformance > 0:
                 performance_text = f"OUTPERFORMED by {outperformance:.2f}%"
+                perf_color = colors.HexColor('#d4edda')  # Light green
             elif outperformance < 0:
                 performance_text = f"UNDERPERFORMED by {abs(outperformance):.2f}%"
+                perf_color = colors.HexColor('#f8d7da')  # Light red
             else:
                 performance_text = "Matched performance"
+                perf_color = colors.HexColor('#fff3cd')  # Light yellow
 
+            performance_row = len(nifty_data)
             nifty_data.append(['Performance vs Nifty 50', performance_text, ''])
 
             value_diff = combined_stats['current_value'] - nifty_stats['current_value']
+            value_diff_row = len(nifty_data)
             nifty_data.append(['Value Difference', format_currency_pdf(value_diff), ''])
 
         nifty_data.append(['Nifty 50 Units Held', '', f"{nifty_stats['units']:.2f}"])
         nifty_data.append(['Current Nifty 50 Price', '', f"{nifty_stats['latest_price']:.2f}"])
 
         nifty_table = Table(nifty_data, colWidths=[2*inch, 2*inch, 2*inch])
-        nifty_table.setStyle(TableStyle([
+
+        # Base table style
+        table_style = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#00897b')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -736,7 +747,26 @@ def generate_pdf_report(individual_stats, combined_stats, filename="xirr_report.
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ]))
+        ]
+
+        # Span performance and value difference rows across columns
+        if performance_row >= 0:
+            table_style.extend([
+                ('SPAN', (1, performance_row), (2, performance_row)),
+                ('BACKGROUND', (0, performance_row), (-1, performance_row), perf_color),
+                ('FONTNAME', (0, performance_row), (-1, performance_row), 'Helvetica-Bold'),
+                ('ALIGN', (1, performance_row), (2, performance_row), 'CENTER'),
+            ])
+
+        if value_diff_row >= 0:
+            table_style.extend([
+                ('SPAN', (1, value_diff_row), (2, value_diff_row)),
+                ('BACKGROUND', (0, value_diff_row), (-1, value_diff_row), colors.HexColor('#e3f2fd')),
+                ('FONTNAME', (0, value_diff_row), (-1, value_diff_row), 'Helvetica-Bold'),
+                ('ALIGN', (1, value_diff_row), (2, value_diff_row), 'CENTER'),
+            ])
+
+        nifty_table.setStyle(TableStyle(table_style))
 
         elements.append(nifty_table)
         elements.append(Spacer(1, 12))
