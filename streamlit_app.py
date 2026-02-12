@@ -223,11 +223,11 @@ def main():
 
             **Groww (PDF):**
             1. Log in to [Groww](https://groww.in/)
-            2. Go to **Profile** → **Reports & Statements**
-            3. Select **Ledger Statement**
-            4. Select date range (max 1 year per PDF)
-            5. Download the PDF file(s)
-            6. Upload the PDF file(s) here with your PAN as password
+            2. Go to **Funds** → **All Transactions**
+            3. Select the date & year
+            4. Click **Download** (max 1 year per PDF)
+            5. Repeat for each year as needed
+            6. Upload all PDF file(s) here with your PAN as password
             """)
 
         with st.expander("📊 View Sample Report"):

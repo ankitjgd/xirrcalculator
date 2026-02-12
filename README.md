@@ -643,11 +643,18 @@ The tool parses Groww ledger PDFs with these features:
 - "RAZORPAY_DEPOSIT" or any deposit type → Counted as investment (outflow)
 - "GROWW_WITHDRAW" → Counted as withdrawal (inflow)
 
+**How to download Groww ledger:**
+1. Log in to [Groww](https://groww.in/)
+2. Go to **Funds** → **All Transactions**
+3. Select the date & year
+4. Click **Download**
+5. Repeat for each year (Groww limits to 1 year per PDF)
+
 **Important notes for Groww:**
 - PDFs are password-protected (usually your PAN number in uppercase)
-- Groww restricts ledger downloads to 1 year maximum
+- Groww restricts ledger downloads to **1 year maximum per PDF**
 - For longer investment periods, download multiple yearly PDFs
-- Place all PDFs in the `ledger/` folder and the calculator will combine them automatically
+- Place all PDFs in the `ledger/` folder and the calculator will combine them automatically by PAN number
 
 ## 🚀 Deploying to Streamlit Cloud
 
