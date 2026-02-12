@@ -438,6 +438,10 @@ Generating PDF report...
 - Investment record keeping
 - Performance tracking
 
+**Sample Report:**
+- 📋 View [`reports/sample_report.pdf`](reports/sample_report.pdf) for an example of the generated report
+- Shows multi-account analysis with Nifty 50 comparison
+
 ### Single Account Example
 
 ```

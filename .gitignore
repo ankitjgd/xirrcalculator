@@ -47,8 +47,9 @@ Thumbs.db
 ledger/*.csv
 ledger/*.xlsx
 
-# Reports folder - keep structure but ignore PDF reports
+# Reports folder - keep structure but ignore PDF reports (except sample)
 reports/*.pdf
+!reports/sample_report.pdf
 
 # Logs
 *.log
