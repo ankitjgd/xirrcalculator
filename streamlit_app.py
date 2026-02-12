@@ -242,47 +242,126 @@ def main():
     # Process uploaded files
     st.header("📈 Portfolio Analysis")
 
-    accounts_data = []
+    # First pass: Load all files and extract account info
+    file_info = {}
+    account_groups = {}
 
-    for uploaded_file in uploaded_files:
-        with st.expander(f"📄 {uploaded_file.name}", expanded=True):
+    with st.spinner("Loading and analyzing files..."):
+        for uploaded_file in uploaded_files:
             outflows, inflows, filename = process_uploaded_file(uploaded_file, pdf_password)
 
             if outflows is not None and inflows is not None:
-                st.success(f"✓ Found {len(outflows)} investments and {len(inflows)} withdrawals")
+                # For PDFs, we should have account_id (PAN). For CSV, it's None
+                # We need to extract the account_id from the third return value
+                # Let's update process_uploaded_file to return account_id
+                temp_path = f"temp_{uploaded_file.name}"
+                try:
+                    with open(temp_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
 
-                # Get portfolio value inputs
-                col1, col2 = st.columns(2)
+                    outflows_new, inflows_new, account_id = load_and_parse_ledger(temp_path, pdf_password)
+                    os.remove(temp_path)
 
-                with col1:
-                    holdings = st.number_input(
-                        f"Current Holdings Value (₹)",
-                        min_value=0.0,
-                        value=0.0,
-                        step=1000.0,
-                        key=f"holdings_{filename}",
-                        help="Total market value of all stocks/securities"
-                    )
+                    # Use filename as account_id for CSV files
+                    if account_id is None:
+                        account_id = filename
 
-                with col2:
-                    cash = st.number_input(
-                        f"Available Cash (₹)",
-                        min_value=0.0,
-                        value=0.0,
-                        step=1000.0,
-                        key=f"cash_{filename}",
-                        help="Available cash balance in trading account"
-                    )
+                    # Store file info
+                    file_info[filename] = {
+                        'account_id': account_id,
+                        'outflows': outflows_new,
+                        'inflows': inflows_new
+                    }
 
-                current_value = holdings + cash
+                    # Group by account
+                    if account_id not in account_groups:
+                        account_groups[account_id] = []
+                    account_groups[account_id].append(filename)
 
-                if current_value > 0:
-                    accounts_data.append({
-                        'name': filename,
-                        'outflows': outflows,
-                        'inflows': inflows,
-                        'current_value': current_value
-                    })
+                except Exception as e:
+                    st.error(f"Error processing {filename}: {str(e)}")
+                    continue
+
+    # Display grouping information
+    if len(account_groups) > 0:
+        with st.expander("ℹ️ Account Grouping", expanded=True):
+            for account_id, files in account_groups.items():
+                if len(files) > 1:
+                    is_pan = account_id and len(account_id) == 10 and account_id[0].isalpha()
+                    account_type = f"🏦 {account_id}" if is_pan else f"📁 {account_id}"
+                    st.info(f"**{account_type}** - Combined {len(files)} file(s) from same account")
+                    for f in files:
+                        st.write(f"  • {f}")
+                else:
+                    st.write(f"📄 {account_id}")
+
+    # Second pass: Get portfolio values for each unique account
+    accounts_data = []
+
+    for account_id, files in account_groups.items():
+        # Combine transactions from all files of this account
+        combined_outflows = []
+        combined_inflows = []
+
+        for filename in files:
+            info = file_info[filename]
+            combined_outflows.append(info['outflows'])
+            combined_inflows.append(info['inflows'])
+
+        # Concatenate all transactions
+        account_outflows = pd.concat(combined_outflows, ignore_index=True) if combined_outflows else pd.DataFrame()
+        account_inflows = pd.concat(combined_inflows, ignore_index=True) if combined_inflows else pd.DataFrame()
+
+        # Skip if no transactions
+        if len(account_outflows) == 0:
+            st.warning(f"⚠️ No fund additions found for {account_id}. Skipping...")
+            continue
+
+        # Display account info
+        is_pan = account_id and len(account_id) == 10 and account_id[0].isalpha()
+        if is_pan:
+            account_name = f"Groww Account (PAN: {account_id})"
+        else:
+            account_name = account_id
+
+        with st.expander(f"💼 {account_name}", expanded=True):
+            if len(files) > 1:
+                st.info(f"📊 Combined data from {len(files)} file(s): {len(account_outflows)} deposits, {len(account_inflows)} withdrawals")
+            else:
+                st.success(f"✓ Found {len(account_outflows)} investments and {len(account_inflows)} withdrawals")
+
+            # Get portfolio value inputs
+            col1, col2 = st.columns(2)
+
+            with col1:
+                holdings = st.number_input(
+                    f"Current Holdings Value (₹)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1000.0,
+                    key=f"holdings_{account_id}",
+                    help="Total market value of all stocks/securities"
+                )
+
+            with col2:
+                cash = st.number_input(
+                    f"Available Cash (₹)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1000.0,
+                    key=f"cash_{account_id}",
+                    help="Available cash balance in trading account"
+                )
+
+            current_value = holdings + cash
+
+            if current_value > 0:
+                accounts_data.append({
+                    'name': account_name,
+                    'outflows': account_outflows,
+                    'inflows': account_inflows,
+                    'current_value': current_value
+                })
 
     # Calculate and display results
     if accounts_data:

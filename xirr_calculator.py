@@ -318,16 +318,43 @@ def calculate_nifty50_portfolio(outflows, inflows, nifty_data):
         return None
 
 
+def extract_pan_from_groww_pdf(pdf_file, password=None):
+    """
+    Extract PAN number from Groww PDF ledger.
+
+    Returns:
+        str: PAN number or None if not found
+    """
+    try:
+        with pdfplumber.open(pdf_file, password=password or "") as pdf:
+            # Get first page
+            if len(pdf.pages) > 0:
+                first_page = pdf.pages[0]
+                text = first_page.extract_text()
+
+                # Search for PAN in text (format: PAN: XXXXX9999X)
+                import re
+                pan_match = re.search(r'PAN:\s*([A-Z]{5}\d{4}[A-Z])', text)
+                if pan_match:
+                    return pan_match.group(1)
+        return None
+    except:
+        return None
+
+
 def load_and_parse_groww_pdf(pdf_file, password=None):
     """
     Load Groww ledger PDF and extract relevant transactions.
 
     Returns:
-        tuple: (outflows_df, inflows_df) where each is a DataFrame with 'date' and 'amount' columns
+        tuple: (outflows_df, inflows_df, pan_number) where each df is a DataFrame with 'date' and 'amount' columns
     """
     print(f"\nLoading Groww PDF ledger: {pdf_file}")
 
     try:
+        # Extract PAN number first
+        pan_number = extract_pan_from_groww_pdf(pdf_file, password)
+
         # Try to open PDF with password if provided
         with pdfplumber.open(pdf_file, password=password or "") as pdf:
             all_deposits = []
@@ -420,12 +447,10 @@ def load_and_parse_groww_pdf(pdf_file, password=None):
 
             print(f"Found {len(outflows_df)} fund additions (deposits)")
             print(f"Found {len(inflows_df)} withdrawals")
+            if pan_number:
+                print(f"PAN: {pan_number}")
 
-            if len(outflows_df) == 0:
-                print("Error: No fund additions found in the PDF ledger.")
-                sys.exit(1)
-
-            return outflows_df, inflows_df
+            return outflows_df, inflows_df, pan_number
 
     except Exception as e:
         if "password" in str(e).lower():
@@ -449,17 +474,19 @@ def load_and_parse_ledger(ledger_file, password=None):
         password: Optional password for PDF files
 
     Returns:
-        tuple: (outflows_df, inflows_df) where each is a DataFrame with 'date' and 'amount' columns
+        tuple: (outflows_df, inflows_df, account_id) where each df is a DataFrame with 'date' and 'amount' columns
+               account_id is PAN for Groww, None for Zerodha
     """
     # Detect file type
     file_extension = os.path.splitext(ledger_file)[1].lower()
 
     if file_extension == '.pdf':
-        # Handle Groww PDF ledger
+        # Handle Groww PDF ledger - returns (outflows, inflows, pan)
         return load_and_parse_groww_pdf(ledger_file, password)
     elif file_extension == '.csv':
-        # Handle Zerodha CSV ledger
-        return load_and_parse_zerodha_csv(ledger_file)
+        # Handle Zerodha CSV ledger - add None for account_id
+        outflows, inflows = load_and_parse_zerodha_csv(ledger_file)
+        return outflows, inflows, None
     else:
         print(f"Error: Unsupported file type '{file_extension}'. Supported types: .csv, .pdf")
         sys.exit(1)
@@ -1070,26 +1097,101 @@ def main():
         if not pdf_password:
             pdf_password = None
 
-    # Process each file and get portfolio values
-    file_data = []
+    # First pass: Load all files and group by account (PAN for Groww, filename for Zerodha)
+    print("\n" + "="*60)
+    print("Loading and analyzing files...")
+    print("="*60)
+
+    file_info = {}  # Maps each file to its account_id
+    account_groups = {}  # Maps account_id to list of files
+
+    for ledger_file in ledger_files:
+        print(f"\n[Scanning: {ledger_file}]")
+        outflows, inflows, account_id = load_and_parse_ledger(ledger_file, pdf_password)
+
+        # For CSV files (Zerodha), use filename as account_id
+        if account_id is None:
+            account_id = ledger_file
+
+        # Store file info
+        file_info[ledger_file] = {
+            'account_id': account_id,
+            'outflows': outflows,
+            'inflows': inflows
+        }
+
+        # Group by account
+        if account_id not in account_groups:
+            account_groups[account_id] = []
+        account_groups[account_id].append(ledger_file)
+
+    # Display grouping information
+    print("\n" + "="*60)
+    print("Account Grouping")
+    print("="*60)
+
+    for account_id, files in account_groups.items():
+        if len(files) > 1:
+            is_pan = account_id and len(account_id) == 10 and account_id[0].isalpha()
+            account_type = f"PAN: {account_id}" if is_pan else f"Account: {account_id}"
+            print(f"\n{account_type}")
+            print(f"  Combined {len(files)} file(s) from same account:")
+            for f in files:
+                print(f"    - {f}")
+        else:
+            print(f"\n{account_id}")
+            print(f"    - {files[0]}")
+
+    # Second pass: Process each unique account
+    print("\n" + "="*60)
+    print("Portfolio Values")
+    print("="*60)
+
+    account_data = []
     all_outflows = []
     all_inflows = []
-    file_current_values = []
+    account_current_values = []
     total_holdings = 0
     total_cash = 0
 
-    for ledger_file in ledger_files:
-        print(f"\n[Processing: {ledger_file}]")
-        outflows, inflows = load_and_parse_ledger(ledger_file, pdf_password)
+    for account_id, files in account_groups.items():
+        # Combine transactions from all files of this account
+        combined_outflows = []
+        combined_inflows = []
 
-        # Store for combined calculation
-        all_outflows.append(outflows)
-        all_inflows.append(inflows)
+        for ledger_file in files:
+            info = file_info[ledger_file]
+            combined_outflows.append(info['outflows'])
+            combined_inflows.append(info['inflows'])
 
-        # Get portfolio value for this account
-        holdings, cash = get_user_inputs_for_account(ledger_file)
+        # Concatenate all transactions
+        account_outflows = pd.concat(combined_outflows, ignore_index=True) if combined_outflows else pd.DataFrame()
+        account_inflows = pd.concat(combined_inflows, ignore_index=True) if combined_inflows else pd.DataFrame()
+
+        # Check if we have transactions
+        if len(account_outflows) == 0:
+            print(f"\n⚠️  Warning: No fund additions found for {account_id}")
+            print(f"   This might be a continuation statement. Skipping...")
+            continue
+
+        # Display account info
+        is_pan = account_id and len(account_id) == 10 and account_id[0].isalpha()
+        if is_pan:
+            account_name = f"Groww Account (PAN: {account_id})"
+        else:
+            account_name = account_id
+
+        if len(files) > 1:
+            print(f"\n[Account: {account_name}]")
+            print(f"Combined data from {len(files)} file(s)")
+            print(f"Total transactions: {len(account_outflows)} deposits, {len(account_inflows)} withdrawals")
+        else:
+            print(f"\n[Processing: {account_name}]")
+
+        # Get portfolio value for this account (once per account, not per file)
+        holdings, cash = get_user_inputs_for_account(account_name)
         current_value = holdings + cash
-        file_current_values.append(current_value)
+        account_current_values.append(current_value)
         total_holdings += holdings
         total_cash += cash
 
@@ -1097,15 +1199,19 @@ def main():
         print(f"  - Cash: {format_currency(cash)}")
         print(f"  - Total: {format_currency(current_value)}")
 
-        # Store file info
-        file_data.append({
-            'name': ledger_file,
-            'outflows': outflows,
-            'inflows': inflows
+        # Store account info
+        all_outflows.append(account_outflows)
+        all_inflows.append(account_inflows)
+
+        account_data.append({
+            'name': account_name,
+            'outflows': account_outflows,
+            'inflows': account_inflows,
+            'files': files  # Track which files belong to this account
         })
 
     # Show combined summary if multiple accounts
-    if len(ledger_files) > 1:
+    if len(account_groups) > 1:
         print(f"\n{'='*60}")
         print("  Combined Portfolio Summary")
         print(f"{'='*60}")
@@ -1113,19 +1219,19 @@ def main():
         print(f"Total Cash: {format_currency(total_cash)}")
         print(f"Total Value: {format_currency(total_holdings + total_cash)}")
 
-    # Calculate individual stats for each file
+    # Calculate individual stats for each account
     individual_stats = []
-    for i, fd in enumerate(file_data):
+    for i, account in enumerate(account_data):
         stats = calculate_portfolio_stats(
-            fd['outflows'],
-            fd['inflows'],
-            file_current_values[i],
-            fd['name']
+            account['outflows'],
+            account['inflows'],
+            account_current_values[i],
+            account['name']
         )
         individual_stats.append(stats)
 
     # Display individual results
-    if len(ledger_files) > 1:
+    if len(account_groups) > 1:
         print("\n\n" + "#"*60)
         print("  INDIVIDUAL ACCOUNT ANALYSIS")
         print("#"*60)
@@ -1135,7 +1241,7 @@ def main():
 
     # Calculate combined stats
     print("\n\n" + "#"*60)
-    if len(ledger_files) > 1:
+    if len(account_groups) > 1:
         print("  COMBINED PORTFOLIO ANALYSIS")
     else:
         print("  PORTFOLIO ANALYSIS")
@@ -1144,19 +1250,19 @@ def main():
     # Combine all transactions
     combined_outflows = pd.concat(all_outflows, ignore_index=True)
     combined_inflows = pd.concat(all_inflows, ignore_index=True)
-    combined_current_value = sum(file_current_values)
+    combined_current_value = sum(account_current_values)
 
     combined_stats = calculate_portfolio_stats(
         combined_outflows,
         combined_inflows,
         combined_current_value,
-        "Combined Portfolio" if len(ledger_files) > 1 else ""
+        "Combined Portfolio" if len(account_groups) > 1 else ""
     )
 
-    display_portfolio_stats(combined_stats, "Combined Portfolio" if len(ledger_files) > 1 else "Portfolio Summary")
+    display_portfolio_stats(combined_stats, "Combined Portfolio" if len(account_groups) > 1 else "Portfolio Summary")
 
-    # Summary table for multiple files
-    if len(ledger_files) > 1:
+    # Summary table for multiple accounts
+    if len(account_groups) > 1:
         print("\n\n" + "="*75)
         print("  SUMMARY TABLE")
         print("="*75)
