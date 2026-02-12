@@ -78,15 +78,16 @@ def process_uploaded_file(uploaded_file, pdf_password=None):
             f.write(uploaded_file.getbuffer())
 
         # Parse the ledger (automatically detects file type)
-        outflows, inflows = load_and_parse_ledger(temp_path, pdf_password)
+        # Returns: (outflows, inflows, account_id)
+        outflows, inflows, account_id = load_and_parse_ledger(temp_path, pdf_password)
 
         # Clean up temp file
         os.remove(temp_path)
 
-        return outflows, inflows, uploaded_file.name
+        return outflows, inflows, uploaded_file.name, account_id
     except Exception as e:
         st.error(f"Error processing {uploaded_file.name}: {str(e)}")
-        return None, None, None
+        return None, None, None, None
 
 def display_portfolio_metrics(stats, title="Portfolio Summary"):
     """Display portfolio metrics in a nice format."""
@@ -248,39 +249,24 @@ def main():
 
     with st.spinner("Loading and analyzing files..."):
         for uploaded_file in uploaded_files:
-            outflows, inflows, filename = process_uploaded_file(uploaded_file, pdf_password)
+            outflows, inflows, filename, account_id = process_uploaded_file(uploaded_file, pdf_password)
 
             if outflows is not None and inflows is not None:
-                # For PDFs, we should have account_id (PAN). For CSV, it's None
-                # We need to extract the account_id from the third return value
-                # Let's update process_uploaded_file to return account_id
-                temp_path = f"temp_{uploaded_file.name}"
-                try:
-                    with open(temp_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
+                # Use filename (without folder path) as account_id for CSV files
+                if account_id is None:
+                    account_id = filename  # filename is already without path in uploaded files
 
-                    outflows_new, inflows_new, account_id = load_and_parse_ledger(temp_path, pdf_password)
-                    os.remove(temp_path)
+                # Store file info
+                file_info[filename] = {
+                    'account_id': account_id,
+                    'outflows': outflows,
+                    'inflows': inflows
+                }
 
-                    # Use filename (without folder path) as account_id for CSV files
-                    if account_id is None:
-                        account_id = filename  # filename is already without path in uploaded files
-
-                    # Store file info
-                    file_info[filename] = {
-                        'account_id': account_id,
-                        'outflows': outflows_new,
-                        'inflows': inflows_new
-                    }
-
-                    # Group by account
-                    if account_id not in account_groups:
-                        account_groups[account_id] = []
-                    account_groups[account_id].append(filename)
-
-                except Exception as e:
-                    st.error(f"Error processing {filename}: {str(e)}")
-                    continue
+                # Group by account
+                if account_id not in account_groups:
+                    account_groups[account_id] = []
+                account_groups[account_id].append(filename)
 
     # Display grouping information
     if len(account_groups) > 0:
