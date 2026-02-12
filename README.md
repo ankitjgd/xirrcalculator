@@ -1,6 +1,15 @@
 # XIRR Calculator for Zerodha Portfolio
 
-A Python CLI tool to calculate the Extended Internal Rate of Return (XIRR) for your Zerodha trading account.
+A Python tool (CLI + Web App) to calculate the Extended Internal Rate of Return (XIRR) for your Zerodha trading account with Nifty 50 benchmark comparison.
+
+## 🌐 Web App
+
+**Try it online:** [Coming soon - Deploy to Streamlit Cloud]
+
+Or run locally:
+```bash
+streamlit run streamlit_app.py
+```
 
 ## What is XIRR?
 
@@ -608,6 +617,46 @@ The tool expects a Zerodha ledger CSV with these columns:
 - "Funds added" → Counted as investment (outflow)
 - "Payout" → Counted as withdrawal (inflow)
 - "quarterly settlement" → Counted as withdrawal (inflow)
+
+## 🚀 Deploying to Streamlit Cloud
+
+### Step 1: Prepare Repository
+Your repository is already set up! The `streamlit_app.py` and required files are ready.
+
+### Step 2: Deploy on Streamlit Cloud
+
+1. **Go to [share.streamlit.io](https://share.streamlit.io)**
+
+2. **Sign in with GitHub**
+
+3. **Click "New app"**
+
+4. **Configure deployment:**
+   - Repository: `ankitjgd/xirrcalculator`
+   - Branch: `main`
+   - Main file path: `streamlit_app.py`
+
+5. **Click "Deploy"**
+
+That's it! Your app will be live in 2-3 minutes at:
+```
+https://ankitjgd-xirrcalculator.streamlit.app
+```
+
+### Step 3: Update README
+Once deployed, update the web app link at the top of this README.
+
+### Running Locally
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the Streamlit app
+streamlit run streamlit_app.py
+```
+
+The app will open in your browser at `http://localhost:8501`
 
 ## License
 

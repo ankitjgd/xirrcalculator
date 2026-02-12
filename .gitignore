@@ -54,6 +54,11 @@ reports/*.pdf
 # Logs
 *.log
 
+# Streamlit
+.streamlit/secrets.toml
+temp_*.csv
+temp_*.pdf
+
 # PyInstaller build artifacts
 build/
 dist/
