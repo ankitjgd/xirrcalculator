@@ -543,6 +543,10 @@ def main():
                     # Start over button
                     st.markdown("##")
                     if st.button("🔄 Start Over", use_container_width=True):
+                        # Clear all session state
+                        for key in list(st.session_state.keys()):
+                            del st.session_state[key]
+                        # Reset to step 1
                         st.session_state.step = 1
                         st.session_state.uploaded_files = []
                         st.session_state.pdf_password = None
