@@ -654,9 +654,12 @@ The tool parses Groww ledger PDFs with these features:
 **How to download Groww ledger:**
 1. Log in to [Groww](https://groww.in/)
 2. Go to **Funds** → **All Transactions**
-3. Select the date & year
+3. Select date & year (max 1 year per PDF)
 4. Click **Download**
-5. Repeat for each year (Groww limits to 1 year per PDF)
+5. **Repeat for ALL years** from your first investment till now
+6. You'll have multiple PDFs (one per year)
+
+**Important:** Download statements covering your entire investment period to get accurate XIRR calculations.
 
 **Important notes for Groww:**
 - PDFs are password-protected (usually your PAN number in uppercase)

@@ -224,12 +224,15 @@ def main():
             st.markdown("""
             1. Log in to [Groww](https://groww.in/)
             2. Go to **Funds** → **All Transactions**
-            3. Select the date & year
-            4. Click **Download** (max 1 year per PDF)
-            5. Repeat for multiple years if needed
-            
-            ✅ **File type:** PDF  
+            3. Select date & year (max 1 year per PDF)
+            4. Click **Download**
+            5. **Repeat for ALL years** from first investment till now
+            6. You'll have multiple PDFs (one per year)
+
+            ✅ **File type:** PDF
             🔐 **Password:** Your PAN number (uppercase)
+
+            ⚠️ **Important:** Download for entire investment period
             """)
         
         st.info("💡 **Tip:** You can upload multiple files from the same or different brokers. Files from the same account (same PAN) will be automatically combined!")
