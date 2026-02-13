@@ -37,7 +37,7 @@ st.markdown("""
         font-weight: bold;
         color: #1f77b4;
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
     }
     .metric-card {
         background-color: #f0f2f6;
@@ -65,6 +65,84 @@ st.markdown("""
         padding: 1rem;
         border-radius: 0.3rem;
         margin: 1rem 0;
+    }
+
+    /* Card styling for broker sections */
+    .broker-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 2px solid #e0e0e0;
+        height: 100%;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .broker-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .broker-card.zerodha {
+        border-left: 4px solid #0066cc;
+    }
+    .broker-card.groww {
+        border-left: 4px solid #00d09c;
+    }
+
+    /* Step header styling */
+    .step-header {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #1f77b4;
+    }
+
+    /* Instruction list styling */
+    .instructions {
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+    .instructions li {
+        margin-bottom: 0.5rem;
+    }
+    .instructions strong {
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    /* Info badges */
+    .info-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin: 0.25rem 0.25rem 0.25rem 0;
+    }
+    .info-badge.success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .info-badge.warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    /* Progress step improvements */
+    [data-testid="column"] {
+        padding: 0.5rem;
+    }
+
+    /* Button improvements */
+    .stButton>button {
+        font-weight: 500;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.2s;
+    }
+    .stButton>button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -179,62 +257,120 @@ def main():
     """)
     
     # Progress indicator
-    st.markdown("---")
-    progress_cols = st.columns(4)
+    st.markdown("##")
+
+    progress_html = "<div style='display: flex; justify-content: space-between; margin: 2rem 0; padding: 1rem 0;'>"
+
     steps = [
-        ("1️⃣", "Download Guide"),
-        ("2️⃣", "Upload Files"),
-        ("3️⃣", "Enter Password"),
-        ("4️⃣", "Analysis")
+        ("1", "Download Guide", "📥"),
+        ("2", "Upload Files", "📤"),
+        ("3", "Enter Password", "🔐"),
+        ("4", "Analysis", "📊")
     ]
-    
-    for i, (icon, label) in enumerate(steps, 1):
-        with progress_cols[i-1]:
-            if i < st.session_state.step:
-                st.success(f"{icon} ✓ {label}")
-            elif i == st.session_state.step:
-                st.info(f"**{icon} {label}**")
-            else:
-                st.text(f"{icon} {label}")
-    
+
+    for i, (num, label, icon) in enumerate(steps, 1):
+        if i < st.session_state.step:
+            # Completed
+            color = "#28a745"
+            bg_color = "#d4edda"
+            icon_display = "✓"
+            text_style = "color: #28a745; font-weight: 600;"
+        elif i == st.session_state.step:
+            # Current
+            color = "#0066cc"
+            bg_color = "#cce5ff"
+            icon_display = icon
+            text_style = "color: #0066cc; font-weight: 700;"
+        else:
+            # Upcoming
+            color = "#999"
+            bg_color = "#f0f0f0"
+            icon_display = icon
+            text_style = "color: #666;"
+
+        progress_html += f"""
+        <div style='flex: 1; text-align: center; position: relative;'>
+            <div style='width: 50px; height: 50px; margin: 0 auto; background: {bg_color}; border: 3px solid {color};
+                        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                        font-size: 1.5rem; font-weight: bold;'>
+                {icon_display}
+            </div>
+            <div style='margin-top: 0.5rem; font-size: 0.85rem; {text_style}'>
+                {label}
+            </div>
+        </div>
+        """
+
+    progress_html += "</div>"
+    st.markdown(progress_html, unsafe_allow_html=True)
     st.markdown("---")
     
     # Step 1: Download Instructions
     if st.session_state.step == 1:
-        st.header("📥 Step 1: How to Download Your Ledger Files")
-        
-        col1, col2 = st.columns(2)
-        
+        st.markdown('<p class="step-header">📥 Step 1: How to Download Your Ledger Files</p>', unsafe_allow_html=True)
+        st.markdown("Get your transaction history from your broker to calculate XIRR.")
+        st.markdown("##")
+
+        col1, col2 = st.columns(2, gap="large")
+
         with col1:
-            st.subheader("🟦 Zerodha (CSV)")
             st.markdown("""
-            1. Log in to [Zerodha Console](https://console.zerodha.com/)
-            2. Go to **Funds** → **View Statement**
-            3. Select **All segment category**
-            4. Select date range (from first investment till now)
-            5. Click **Download CSV**
+            <div class="broker-card zerodha">
+                <h3>🟦 Zerodha (CSV)</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="instructions">
+
+            1. Log in to <a href="https://console.zerodha.com/" target="_blank"><strong>Zerodha Console</strong></a>
+            2. Go to <strong>Funds → View Statement</strong>
+            3. Select <strong>All segment category</strong>
+            4. Select date range (<strong>from first investment till now</strong>)
+            5. Click <strong>Download CSV</strong>
             6. Save the file
 
-            ✅ **File type:** CSV
-            🔓 **Password:** Not required
-            """)
-        
-        with col2:
-            st.subheader("🟩 Groww (PDF)")
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("##")
             st.markdown("""
-            1. Log in to [Groww](https://groww.in/)
-            2. Go to **Funds** → **All Transactions**
+            <div style="padding: 0.75rem; background: #e8f4f8; border-radius: 8px; margin-top: 1rem;">
+                <div style="margin-bottom: 0.5rem;">✅ <strong>File type:</strong> CSV</div>
+                <div>🔓 <strong>Password:</strong> Not required</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            st.markdown("""
+            <div class="broker-card groww">
+                <h3>🟩 Groww (PDF)</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="instructions">
+
+            1. Log in to <a href="https://groww.in/" target="_blank"><strong>Groww</strong></a>
+            2. Go to <strong>Funds → All Transactions</strong>
             3. Select date & year (max 1 year per PDF)
-            4. Click **Download**
-            5. **Repeat for ALL years** from first investment till now
+            4. Click <strong>Download</strong>
+            5. <strong>Repeat for ALL years</strong> from first investment till now
             6. You'll have multiple PDFs (one per year)
 
-            ✅ **File type:** PDF
-            🔐 **Password:** Your PAN number (uppercase)
+            </div>
+            """, unsafe_allow_html=True)
 
-            ⚠️ **Important:** Download for entire investment period
-            """)
-        
+            st.markdown("##")
+            st.markdown("""
+            <div style="padding: 0.75rem; background: #e8f8f5; border-radius: 8px; margin-top: 1rem;">
+                <div style="margin-bottom: 0.5rem;">✅ <strong>File type:</strong> PDF</div>
+                <div style="margin-bottom: 0.5rem;">🔐 <strong>Password:</strong> Your PAN number (uppercase)</div>
+                <div style="color: #d97706; font-weight: 500;">⚠️ Download for entire investment period</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("##")
         st.info("💡 **Tip:** You can upload multiple files from the same or different brokers. Files from the same account (same PAN) will be automatically combined!")
         
         st.markdown("##")
