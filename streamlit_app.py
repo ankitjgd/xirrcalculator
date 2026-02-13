@@ -417,37 +417,46 @@ def main():
     elif st.session_state.step == 4:
         uploaded_files = st.session_state.uploaded_files
         pdf_password = st.session_state.pdf_password
-        
+
         if not uploaded_files:
             st.error("❌ No files uploaded!")
             if st.button("← Back to Upload", use_container_width=True):
                 st.session_state.step = 2
                 st.rerun()
             return
-        
+
         st.header("📈 Step 4: Portfolio Analysis")
-        
-        # Process files and group by account
-        file_info = {}
-        account_groups = {}
-        
-        with st.spinner("📂 Loading and analyzing files..."):
-            for uploaded_file in uploaded_files:
-                outflows, inflows, filename, account_id = process_uploaded_file(uploaded_file, pdf_password)
-                
-                if outflows is not None and inflows is not None:
-                    if account_id is None:
-                        account_id = filename
-                    
-                    file_info[filename] = {
-                        'account_id': account_id,
-                        'outflows': outflows,
-                        'inflows': inflows
-                    }
-                    
-                    if account_id not in account_groups:
-                        account_groups[account_id] = []
-                    account_groups[account_id].append(filename)
+
+        # Process files only once and store in session state
+        if 'file_info' not in st.session_state or 'account_groups' not in st.session_state:
+            file_info = {}
+            account_groups = {}
+
+            with st.spinner("📂 Loading and analyzing files..."):
+                for uploaded_file in uploaded_files:
+                    outflows, inflows, filename, account_id = process_uploaded_file(uploaded_file, pdf_password)
+
+                    if outflows is not None and inflows is not None:
+                        if account_id is None:
+                            account_id = filename
+
+                        file_info[filename] = {
+                            'account_id': account_id,
+                            'outflows': outflows,
+                            'inflows': inflows
+                        }
+
+                        if account_id not in account_groups:
+                            account_groups[account_id] = []
+                        account_groups[account_id].append(filename)
+
+            # Store in session state
+            st.session_state.file_info = file_info
+            st.session_state.account_groups = account_groups
+        else:
+            # Use cached data
+            file_info = st.session_state.file_info
+            account_groups = st.session_state.account_groups
         
         # Display account grouping
         if len(account_groups) > 0:
@@ -462,72 +471,91 @@ def main():
                     else:
                         st.write(f"📄 {account_id}")
         
-        # Get portfolio values for each account
-        accounts_data = []
-        
+        # Display input form for portfolio values
         st.markdown("### 💰 Enter Current Portfolio Values")
-        
+
+        # Pre-process account data (without user inputs)
+        account_details = []
+
         for account_id, files in account_groups.items():
             # Combine transactions
             combined_outflows = []
             combined_inflows = []
-            
+
             for filename in files:
                 info = file_info[filename]
                 combined_outflows.append(info['outflows'])
                 combined_inflows.append(info['inflows'])
-            
+
             account_outflows = pd.concat(combined_outflows, ignore_index=True) if combined_outflows else pd.DataFrame()
             account_inflows = pd.concat(combined_inflows, ignore_index=True) if combined_inflows else pd.DataFrame()
-            
+
             if len(account_outflows) == 0:
                 st.warning(f"⚠️ No deposits found for {account_id}. Skipping...")
                 continue
-            
+
             # Display name
             is_pan = account_id and len(account_id) == 10 and account_id[0].isalpha()
             account_name = f"Groww Account (PAN: {account_id})" if is_pan else account_id
-            
-            with st.expander(f"💼 {account_name}", expanded=True):
-                if len(files) > 1:
-                    st.info(f"📊 Combined: {len(account_outflows)} deposits, {len(account_inflows)} withdrawals")
+
+            account_details.append({
+                'account_id': account_id,
+                'account_name': account_name,
+                'files': files,
+                'outflows': account_outflows,
+                'inflows': account_inflows
+            })
+
+        # Display input fields
+        for account in account_details:
+            with st.expander(f"💼 {account['account_name']}", expanded=True):
+                if len(account['files']) > 1:
+                    st.info(f"📊 Combined: {len(account['outflows'])} deposits, {len(account['inflows'])} withdrawals")
                 else:
-                    st.success(f"✓ {len(account_outflows)} deposits, {len(account_inflows)} withdrawals")
-                
+                    st.success(f"✓ {len(account['outflows'])} deposits, {len(account['inflows'])} withdrawals")
+
                 col1, col2 = st.columns(2)
-                
+
                 with col1:
-                    holdings = st.number_input(
+                    st.number_input(
                         "Current Holdings Value (₹)",
                         min_value=0.0,
                         value=0.0,
                         step=1000.0,
-                        key=f"holdings_{account_id}",
+                        key=f"holdings_{account['account_id']}",
                         help="Total market value of stocks/securities"
                     )
-                
+
                 with col2:
-                    cash = st.number_input(
+                    st.number_input(
                         "Available Cash (₹)",
                         min_value=0.0,
                         value=0.0,
                         step=1000.0,
-                        key=f"cash_{account_id}",
+                        key=f"cash_{account['account_id']}",
                         help="Available cash balance"
                     )
-                
+
+        # Calculate button
+        st.markdown("##")
+        if st.button("🔢 Calculate XIRR & Generate Report", type="primary", use_container_width=True):
+            # Build accounts_data from session state values
+            accounts_data = []
+
+            for account in account_details:
+                holdings = st.session_state.get(f"holdings_{account['account_id']}", 0.0)
+                cash = st.session_state.get(f"cash_{account['account_id']}", 0.0)
                 current_value = holdings + cash
-                
+
                 accounts_data.append({
-                    'name': account_name,
-                    'outflows': account_outflows,
-                    'inflows': account_inflows,
+                    'name': account['account_name'],
+                    'outflows': account['outflows'],
+                    'inflows': account['inflows'],
                     'current_value': current_value
                 })
-        
-        # Calculate and display results
-        if accounts_data:
-            if st.button("🔢 Calculate XIRR & Generate Report", type="primary", use_container_width=True):
+
+            # Now calculate and display results
+            if accounts_data:
                 with st.spinner("🧮 Calculating XIRR and fetching Nifty 50 data..."):
                     
                     # Calculate stats for each account
