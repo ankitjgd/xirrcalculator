@@ -621,6 +621,13 @@ All dependencies are installed automatically when using the startup scripts (`ru
 
 ### Zerodha (CSV)
 
+**How to download Zerodha ledger:**
+1. Log in to [Zerodha Console](https://console.zerodha.com/)
+2. Go to **Funds** → **View Statement**
+3. Select **All segment category**
+4. Click **Download CSV**
+
+**File format details:**
 The tool expects a Zerodha ledger CSV with these columns:
 - `particulars`: Transaction description (identifies fund additions, payouts, quarterly settlements)
 - `posting_date`: Date of transaction (YYYY-MM-DD format)

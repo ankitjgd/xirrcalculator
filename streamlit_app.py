@@ -209,12 +209,12 @@ def main():
             st.subheader("🟦 Zerodha (CSV)")
             st.markdown("""
             1. Log in to [Zerodha Console](https://console.zerodha.com/)
-            2. Go to **Reports** → **Ledger**
-            3. Select date range
-            4. Click **Download** and choose **CSV format**
+            2. Go to **Funds** → **View Statement**
+            3. Select **All segment category**
+            4. Click **Download CSV**
             5. Save the file
-            
-            ✅ **File type:** CSV  
+
+            ✅ **File type:** CSV
             🔓 **Password:** Not required
             """)
         
