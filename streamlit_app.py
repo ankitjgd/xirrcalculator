@@ -211,8 +211,9 @@ def main():
             1. Log in to [Zerodha Console](https://console.zerodha.com/)
             2. Go to **Funds** → **View Statement**
             3. Select **All segment category**
-            4. Click **Download CSV**
-            5. Save the file
+            4. Select date range (from first investment till now)
+            5. Click **Download CSV**
+            6. Save the file
 
             ✅ **File type:** CSV
             🔓 **Password:** Not required

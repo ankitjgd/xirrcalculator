@@ -625,7 +625,8 @@ All dependencies are installed automatically when using the startup scripts (`ru
 1. Log in to [Zerodha Console](https://console.zerodha.com/)
 2. Go to **Funds** → **View Statement**
 3. Select **All segment category**
-4. Click **Download CSV**
+4. Select date range (from your first investment till now)
+5. Click **Download CSV**
 
 **File format details:**
 The tool expects a Zerodha ledger CSV with these columns:
